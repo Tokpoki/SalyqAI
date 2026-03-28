@@ -227,6 +227,88 @@ def _looks_like_timestamp(value: str | None) -> bool:
     return True
 
 
+def _table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
+    row = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
+        (table_name,),
+    ).fetchone()
+    return row is not None
+
+
+def _table_columns(conn: sqlite3.Connection, table_name: str) -> set[str]:
+    rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+    return {row["name"] for row in rows}
+
+
+def _ensure_column(
+    conn: sqlite3.Connection,
+    table_name: str,
+    column_name: str,
+    column_sql: str,
+) -> None:
+    if not _table_exists(conn, table_name):
+        return
+
+    if column_name in _table_columns(conn, table_name):
+        return
+
+    conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_sql}")
+
+
+def _normalize_legacy_schema(conn: sqlite3.Connection) -> None:
+    _ensure_column(
+        conn,
+        "chat_sessions",
+        "knowledge_version",
+        "knowledge_version TEXT NOT NULL DEFAULT 'tax_code_2026_v1'",
+    )
+    _ensure_column(
+        conn,
+        "chat_sessions",
+        "updated_at",
+        "updated_at TEXT NOT NULL DEFAULT '1970-01-01T00:00:00+00:00'",
+    )
+    _ensure_column(
+        conn,
+        "chat_sessions",
+        "user_id",
+        "user_id TEXT REFERENCES users(id)",
+    )
+    _ensure_column(conn, "chat_sessions", "title", "title TEXT")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_sessions_user ON chat_sessions(user_id)")
+
+    _ensure_column(conn, "chat_messages", "advice_json", "advice_json TEXT")
+    _ensure_column(conn, "chat_messages", "confidence", "confidence REAL")
+
+    _ensure_column(
+        conn,
+        "taxpayer_profiles",
+        "session_id",
+        "session_id TEXT UNIQUE REFERENCES chat_sessions(id) ON DELETE CASCADE",
+    )
+    _ensure_column(
+        conn,
+        "taxpayer_profiles",
+        "user_id",
+        "user_id TEXT REFERENCES users(id)",
+    )
+    _ensure_column(conn, "taxpayer_profiles", "taxpayer_type", "taxpayer_type TEXT")
+    _ensure_column(conn, "taxpayer_profiles", "tax_regime", "tax_regime TEXT")
+    _ensure_column(conn, "taxpayer_profiles", "annual_income_kzt", "annual_income_kzt REAL")
+    _ensure_column(conn, "taxpayer_profiles", "employees_count", "employees_count INTEGER")
+    _ensure_column(conn, "taxpayer_profiles", "activity_type", "activity_type TEXT")
+    _ensure_column(conn, "taxpayer_profiles", "has_foreign_income", "has_foreign_income INTEGER")
+    _ensure_column(conn, "taxpayer_profiles", "has_rental_income", "has_rental_income INTEGER")
+    _ensure_column(conn, "taxpayer_profiles", "residency_status", "residency_status TEXT")
+    _ensure_column(
+        conn,
+        "taxpayer_profiles",
+        "updated_at",
+        "updated_at TEXT NOT NULL DEFAULT (datetime('now'))",
+    )
+    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_user ON taxpayer_profiles(user_id)")
+
+
 def _ensure_migration_table(conn: sqlite3.Connection) -> None:
     conn.execute(
         """
@@ -248,6 +330,18 @@ def _execute_migration_statement(conn: sqlite3.Connection, statement: str) -> No
         conn.execute(statement)
     except sqlite3.OperationalError as exc:
         if "duplicate column name" in str(exc).lower():
+            return
+        raise
+
+
+def _execute_bootstrap_statement(conn: sqlite3.Connection, statement: str) -> None:
+    try:
+        conn.execute(statement)
+    except sqlite3.OperationalError as exc:
+        error_text = str(exc).lower()
+        if "already exists" in error_text:
+            return
+        if "no such column" in error_text and "index if not exists" in statement.lower():
             return
         raise
 
@@ -294,7 +388,8 @@ def init_db() -> None:
 
     conn = get_connection()
     try:
-        conn.executescript(_DDL)
+        for statement in _split_sql_statements(_DDL):
+            _execute_bootstrap_statement(conn, statement)
         _ensure_migration_table(conn)
         applied_migrations = _get_applied_migrations(conn)
 
@@ -302,6 +397,9 @@ def init_db() -> None:
             if migration_path.name in applied_migrations:
                 continue
             _apply_migration(conn, migration_path)
+
+        _normalize_legacy_schema(conn)
+        conn.commit()
     finally:
         conn.close()
 
