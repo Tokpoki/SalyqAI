@@ -1,14 +1,14 @@
-"""Profile routes for chat sessions."""
+"""Profile routes bound to current user."""
 
-from uuid import UUID
-
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
 from typing import Literal
 
-from db.database import get_session
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
-router = APIRouter(prefix="/api/v1/chat")
+from db import database as db_module
+from src.auth.dependencies import get_current_user
+
+router = APIRouter(prefix="/api/v1/user", tags=["Profile"])
 
 
 class ProfilePatchRequest(BaseModel):
@@ -22,13 +22,24 @@ class ProfilePatchRequest(BaseModel):
     residency_status: Literal["resident", "non_resident"] | None = None
 
 
-@router.patch("/sessions/{sessionId}/profile")
-def patch_profile(sessionId: UUID, body: ProfilePatchRequest):
-    session = get_session(str(sessionId))
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+def _require_db_func(name: str):
+    fn = getattr(db_module, name, None)
+    if not callable(fn):
+        raise HTTPException(
+            status_code=503,
+            detail=f"Missing DB dependency '{name}'. Discuss with Magzhan team first.",
+        )
+    return fn
 
-    raise HTTPException(
-        status_code=501,
-        detail="Profile storage is not available yet. Waiting for taxpayer_profiles table.",
-    )
+
+@router.get("/profile")
+def get_profile(current_user: dict = Depends(get_current_user)):
+    get_or_create_profile_by_user = _require_db_func("get_or_create_profile_by_user")
+    return get_or_create_profile_by_user(current_user["id"])
+
+
+@router.patch("/profile")
+def patch_profile(body: ProfilePatchRequest, current_user: dict = Depends(get_current_user)):
+    update_profile_by_user = _require_db_func("update_profile_by_user")
+    fields = body.model_dump(exclude_none=True)
+    return update_profile_by_user(current_user["id"], fields)

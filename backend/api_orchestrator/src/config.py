@@ -26,6 +26,9 @@ def _resolve_path(raw_path: str, base_dir: Path) -> Path:
 class Settings:
     gemini_api_key: str
     gemini_model: str
+    jwt_secret: str
+    jwt_access_expire_minutes: int
+    jwt_refresh_expire_days: int
     db_path: Path
     chroma_path: Path
     chroma_collection: str
@@ -41,6 +44,9 @@ def get_settings() -> Settings:
     return Settings(
         gemini_api_key=os.getenv("GEMINI_API_KEY", "").strip(),
         gemini_model=os.getenv("GEMINI_MODEL", "gemini-1.5-flash").strip(),
+        jwt_secret=os.getenv("JWT_SECRET", "").strip(),
+        jwt_access_expire_minutes=int(os.getenv("JWT_ACCESS_EXPIRE_MINUTES", "30")),
+        jwt_refresh_expire_days=int(os.getenv("JWT_REFRESH_EXPIRE_DAYS", "7")),
         db_path=_resolve_path(db_path_raw, _BACKEND_DIR),
         chroma_path=_resolve_path(chroma_path_raw, _BACKEND_DIR),
         chroma_collection=os.getenv("CHROMA_COLLECTION", "rk_tax_code_2026_articles_e5_large").strip(),

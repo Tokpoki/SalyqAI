@@ -118,3 +118,25 @@ def generate_answer(
         return _normalize_output(raw_data)
     except Exception:
         return _fallback_answer()
+
+
+def generate_chat_title(first_user_message: str) -> str:
+    settings = get_settings()
+    if not settings.gemini_api_key:
+        return "Новый чат"
+
+    prompt = (
+        "Дай название 3-5 слов на русском для чата, начавшегося с: "
+        f"'{first_user_message}'. Верни только название."
+    )
+
+    try:
+        genai.configure(api_key=settings.gemini_api_key)
+        model = genai.GenerativeModel(settings.gemini_model)
+        response = model.generate_content(prompt)
+        title = (getattr(response, "text", "") or "").strip().strip("\"'")
+        if not title:
+            return "Новый чат"
+        return title[:120]
+    except Exception:
+        return "Новый чат"
