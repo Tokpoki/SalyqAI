@@ -1,0 +1,334 @@
+openapi: 3.0.3
+info:
+  title: Salyq AI API
+  version: 0.2.0
+  description: Contract-first MVP for personalized tax guidance (RAG + rules)
+
+servers:
+  - url: http://localhost:8000
+
+tags:
+  - name: System
+  - name: Chat
+  - name: Profile
+  - name: Internal
+  - name: Knowledge
+  - name: Feedback
+
+paths:
+  /api/v1/health:
+    get:
+      tags: [System]
+      summary: Service health
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+                  version: { type: string, example: 0.2.0 }
+
+  /api/v1/chat/sessions:
+    post:
+      tags: [Chat]
+      summary: Create chat session
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSessionRequest"
+      responses:
+        "201":
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+
+  /api/v1/chat/sessions/{sessionId}:
+    get:
+      tags: [Chat]
+      summary: Get session state
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      responses:
+        "200":
+          description: Session details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionDetail"
+
+  /api/v1/chat/sessions/{sessionId}/messages:
+    post:
+      tags: [Chat]
+      summary: Send user message and receive advice
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatMessageRequest"
+      responses:
+        "200":
+          description: Advice generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatMessageResponse"
+
+  /api/v1/chat/sessions/{sessionId}/profile:
+    patch:
+      tags: [Profile]
+      summary: Update profile facts for session
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfilePatchRequest"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+
+  /api/v1/rag/retrieve:
+    post:
+      tags: [Internal]
+      summary: Internal retrieval from vector DB
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RetrieveRequest"
+      responses:
+        "200":
+          description: Retrieved chunks
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RetrieveResponse"
+
+  /api/v1/rules/evaluate:
+    post:
+      tags: [Internal]
+      summary: Internal deterministic rule evaluation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RulesEvaluateRequest"
+      responses:
+        "200":
+          description: Rules result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RulesEvaluateResponse"
+
+  /api/v1/knowledge/versions:
+    get:
+      tags: [Knowledge]
+      summary: List available KB versions
+      responses:
+        "200":
+          description: KB versions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  versions:
+                    type: array
+                    items:
+                      type: string
+
+  /api/v1/feedback:
+    post:
+      tags: [Feedback]
+      summary: Save user feedback for answer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeedbackRequest"
+      responses:
+        "201":
+          description: Feedback saved
+
+components:
+  parameters:
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    CreateSessionRequest:
+      type: object
+      properties:
+        channel: { type: string, example: web }
+        locale: { type: string, example: ru-KZ }
+
+    Session:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, example: active }
+        knowledge_version: { type: string, example: tax_code_2026_v1 }
+        created_at: { type: string, format: date-time }
+
+    SessionDetail:
+      allOf:
+        - $ref: "#/components/schemas/Session"
+        - type: object
+          properties:
+            profile:
+              $ref: "#/components/schemas/Profile"
+            messages:
+              type: array
+              items:
+                $ref: "#/components/schemas/Message"
+
+    Message:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        role: { type: string, enum: [user, assistant, system] }
+        content: { type: string }
+        created_at: { type: string, format: date-time }
+
+    ChatMessageRequest:
+      type: object
+      required: [text]
+      properties:
+        text: { type: string }
+
+    ChatMessageResponse:
+      type: object
+      properties:
+        message_id: { type: string, format: uuid }
+        answer_text: { type: string }
+        action_plan:
+          type: array
+          items: { type: string }
+        obligations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Obligation"
+        clarifying_questions:
+          type: array
+          items: { type: string }
+        citations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Citation"
+        confidence: { type: number }
+        disclaimer: { type: string }
+
+    ProfilePatchRequest:
+      type: object
+      properties:
+        taxpayer_type: { type: string, enum: [individual, sole_proprietor, legal_entity] }
+        tax_regime: { type: string }
+        annual_income_kzt: { type: number }
+        employees_count: { type: integer }
+        activity_type: { type: string }
+        has_foreign_income: { type: boolean }
+        has_rental_income: { type: boolean }
+        residency_status: { type: string, enum: [resident, non_resident] }
+
+    Profile:
+      type: object
+      properties:
+        session_id: { type: string, format: uuid }
+        taxpayer_type: { type: string, nullable: true }
+        tax_regime: { type: string, nullable: true }
+        annual_income_kzt: { type: number, nullable: true }
+        employees_count: { type: integer, nullable: true }
+        activity_type: { type: string, nullable: true }
+        has_foreign_income: { type: boolean, nullable: true }
+        has_rental_income: { type: boolean, nullable: true }
+        residency_status: { type: string, nullable: true }
+        updated_at: { type: string, format: date-time }
+
+    RetrieveRequest:
+      type: object
+      required: [query]
+      properties:
+        query: { type: string }
+        top_k: { type: integer, default: 5 }
+        knowledge_version: { type: string, default: tax_code_2026_v1 }
+
+    RetrieveResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              score: { type: number }
+              citation:
+                $ref: "#/components/schemas/Citation"
+
+    RulesEvaluateRequest:
+      type: object
+      required: [profile]
+      properties:
+        profile:
+          $ref: "#/components/schemas/ProfilePatchRequest"
+
+    RulesEvaluateResponse:
+      type: object
+      properties:
+        obligations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Obligation"
+        warnings:
+          type: array
+          items:
+            type: string
+
+    Obligation:
+      type: object
+      properties:
+        code: { type: string, example: FORM_910_00 }
+        title: { type: string, example: Declaration 910.00 }
+        due_date_rule: { type: string, example: Before Aug 15 for H1 }
+        amount_kzt: { type: number, nullable: true }
+        basis: { type: string, example: art. 686 }
+
+    Citation:
+      type: object
+      properties:
+        article_number: { type: string }
+        article_title: { type: string }
+        snippet: { type: string }
+
+    FeedbackRequest:
+      type: object
+      required: [session_id, message_id, rating]
+      properties:
+        session_id: { type: string, format: uuid }
+        message_id: { type: string, format: uuid }
+        rating: { type: string, enum: [up, down] }
+        reason: { type: string, nullable: true }

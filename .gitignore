@@ -2,3 +2,8 @@
 __pycache__/
 *.pyc
 chroma_rk_tax_code_2026/
+frontend/app/node_modules/
+frontend/app/dist/
+.claude/
+chroma/
+backend/*.db
