@@ -346,6 +346,7 @@ npm run dev
 | Участник | Роль |
 |----------|------|
 | **Орынтай** | Team Lead, Backend Architecture |
+| **Даурен** | Backend API & Auth |
 | **Димаш** | Frontend Development |
 | **Магжан** | Database & RAG Pipeline |
 
