@@ -1,10 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Scale } from "lucide-react";
+import { Scale, Mail, Lock, ArrowRight } from "lucide-react";
 import { login } from "@/api/auth";
 import { isAuthenticated } from "@/lib/auth";
-import { useEffect } from "react";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -34,62 +33,94 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
+    <div className="relative flex min-h-screen items-center justify-center px-4">
+      {/* Background decorations */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 h-[500px] w-[500px] rounded-full bg-emerald-500/8 blur-[120px]" />
+        <div className="absolute -bottom-40 -left-40 h-[400px] w-[400px] rounded-full bg-sky-500/8 blur-[120px]" />
+      </div>
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-sm space-y-6"
+        transition={{ duration: 0.5 }}
+        className="relative z-10 w-full max-w-md"
       >
-        <div className="text-center">
-          <div className="mb-4 flex items-center justify-center gap-2">
-            <Scale size={24} className="text-primary" />
-            <span className="text-xl font-bold">Salyq AI</span>
+        {/* Card */}
+        <div className="rounded-3xl border border-border/50 bg-card p-8 shadow-xl shadow-black/5">
+          {/* Header */}
+          <div className="mb-8 text-center">
+            <Link to="/" className="mb-5 inline-flex items-center gap-2.5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl gradient-bg shadow-lg shadow-emerald-500/20">
+                <Scale size={18} className="text-white" />
+              </div>
+              <span className="text-xl font-bold tracking-tight">Salyq AI</span>
+            </Link>
+            <h1 className="mt-4 text-2xl font-bold">Добро пожаловать</h1>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              Войдите для доступа к налоговому консультанту
+            </p>
           </div>
-          <h1 className="text-xl font-semibold">Войти</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Введите данные для входа
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Email</label>
+              <div className="relative">
+                <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full rounded-xl border border-border/50 bg-background pl-10 pr-4 py-3 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/30"
+                  placeholder="email@example.com"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Пароль</label>
+              <div className="relative">
+                <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full rounded-xl border border-border/50 bg-background pl-10 pr-4 py-3 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/30"
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
+
+            {error && (
+              <motion.p
+                initial={{ opacity: 0, y: -5 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="rounded-xl bg-destructive/10 px-4 py-2.5 text-sm text-destructive"
+              >
+                {error}
+              </motion.p>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="group flex w-full items-center justify-center gap-2 rounded-xl gradient-bg px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/15 transition-all hover:shadow-emerald-500/25 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:hover:scale-100"
+            >
+              {loading ? "Вход..." : "Войти"}
+              {!loading && <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />}
+            </button>
+          </form>
+
+          {/* Footer */}
+          <p className="mt-6 text-center text-sm text-muted-foreground">
+            Нет аккаунта?{" "}
+            <Link to="/register" className="font-semibold text-primary hover:underline">
+              Зарегистрироваться
+            </Link>
           </p>
         </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="mb-1.5 block text-sm font-medium">Email</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              placeholder="email@example.com"
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium">Пароль</label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              placeholder="••••••••"
-            />
-          </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-          >
-            {loading ? "Вход..." : "Войти"}
-          </button>
-        </form>
-
-        <p className="text-center text-sm text-muted-foreground">
-          Нет аккаунта?{" "}
-          <Link to="/register" className="font-medium text-primary hover:underline">
-            Зарегистрироваться
-          </Link>
-        </p>
       </motion.div>
     </div>
   );

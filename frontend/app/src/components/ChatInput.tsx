@@ -36,7 +36,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex items-end gap-2 border-t bg-background px-4 py-3"
+      className="flex items-end gap-3 border-t border-border/50 bg-background/80 backdrop-blur-sm px-4 py-4"
     >
       <textarea
         ref={textareaRef}
@@ -47,17 +47,18 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
         disabled={disabled}
         rows={1}
         className={cn(
-          "flex-1 resize-none rounded-xl border border-input bg-secondary/30 px-4 py-3 text-sm",
-          "placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring",
-          "disabled:opacity-50 disabled:cursor-not-allowed",
+          "flex-1 resize-none rounded-2xl border border-border/50 bg-card px-5 py-3.5 text-sm",
+          "placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/30",
+          "disabled:opacity-50 disabled:cursor-not-allowed transition-all",
         )}
       />
       <button
         type="submit"
         disabled={disabled || !text.trim()}
         className={cn(
-          "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground transition-colors",
-          "hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed",
+          "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl gradient-bg text-white shadow-lg shadow-emerald-500/15 transition-all",
+          "hover:shadow-emerald-500/30 hover:scale-[1.05] active:scale-[0.95]",
+          "disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:shadow-none",
         )}
       >
         <SendHorizonal size={18} />
