@@ -205,6 +205,85 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(error_log["error_type"], "gemini_error")
         self.assertEqual(error_log["session_id"], "session-3")
 
+    def test_init_db_repairs_legacy_schema_missing_user_columns(self) -> None:
+        conn = database.get_connection()
+        try:
+            conn.executescript(
+                """
+                DROP TABLE IF EXISTS schema_migrations;
+                DROP TABLE IF EXISTS error_logs;
+                DROP TABLE IF EXISTS feedback;
+                DROP TABLE IF EXISTS answer_citations;
+                DROP TABLE IF EXISTS extracted_facts;
+                DROP TABLE IF EXISTS taxpayer_profiles;
+                DROP TABLE IF EXISTS chat_messages;
+                DROP TABLE IF EXISTS chat_sessions;
+                DROP TABLE IF EXISTS users;
+
+                CREATE TABLE chat_sessions (
+                    id TEXT PRIMARY KEY,
+                    status TEXT NOT NULL DEFAULT 'active',
+                    created_at TEXT NOT NULL
+                );
+
+                CREATE TABLE chat_messages (
+                    id TEXT PRIMARY KEY,
+                    session_id TEXT NOT NULL,
+                    role TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                );
+
+                CREATE TABLE taxpayer_profiles (
+                    id TEXT PRIMARY KEY,
+                    session_id TEXT UNIQUE,
+                    taxpayer_type TEXT
+                );
+
+                CREATE TABLE schema_migrations (
+                    filename TEXT PRIMARY KEY,
+                    applied_at TEXT NOT NULL
+                );
+                """
+            )
+            conn.executemany(
+                "INSERT INTO schema_migrations (filename, applied_at) VALUES (?, ?)",
+                [
+                    ("0001_init.sql", "2026-03-29T00:00:00+00:00"),
+                    ("0002_expand_chat_schema.sql", "2026-03-29T00:00:00+00:00"),
+                    ("0003_add_users.sql", "2026-03-29T00:00:00+00:00"),
+                    ("0004_sessions_user_id_title.sql", "2026-03-29T00:00:00+00:00"),
+                    ("0005_profiles_user_id.sql", "2026-03-29T00:00:00+00:00"),
+                    ("0006_error_logs.sql", "2026-03-29T00:00:00+00:00"),
+                    ("0007_add_extracted_facts.sql", "2026-03-29T00:00:00+00:00"),
+                    ("0008_add_answer_citations.sql", "2026-03-29T00:00:00+00:00"),
+                    ("0009_add_feedback.sql", "2026-03-29T00:00:00+00:00"),
+                ],
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        database.init_db()
+
+        conn = database.get_connection()
+        try:
+            session_columns = {
+                row["name"]
+                for row in conn.execute("PRAGMA table_info(chat_sessions)").fetchall()
+            }
+            profile_columns = {
+                row["name"]
+                for row in conn.execute("PRAGMA table_info(taxpayer_profiles)").fetchall()
+            }
+
+            self.assertIn("user_id", session_columns)
+            self.assertIn("title", session_columns)
+            self.assertIn("user_id", profile_columns)
+            self.assertIn("updated_at", profile_columns)
+        finally:
+            conn.close()
+
 
 if __name__ == "__main__":
     unittest.main()
