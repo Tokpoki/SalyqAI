@@ -1,9 +1,10 @@
 .venv/
 __pycache__/
 *.pyc
+*.db
+.env
 chroma_rk_tax_code_2026/
+chroma/
 frontend/app/node_modules/
 frontend/app/dist/
 .claude/
-chroma/
-backend/*.db
