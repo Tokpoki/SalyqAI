@@ -7,4 +7,5 @@ chroma_rk_tax_code_2026/
 frontend/app/node_modules/
 frontend/app/dist/
 .claude/
+mcp.json
 chroma/
