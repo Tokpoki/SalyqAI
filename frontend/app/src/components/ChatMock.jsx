@@ -1,32 +1,87 @@
-import React, { useState } from 'react';
+import React from 'react';
 
-export default function ChatMock({ messages }) {
-  const [input, setInput] = useState('');
+export default function ChatMock({
+  messages,
+  input,
+  onInputChange,
+  onSubmit,
+  isConnecting,
+  isSending,
+  isSessionReady,
+  error,
+}) {
+  function handleSubmit(event) {
+    event.preventDefault();
+    onSubmit();
+  }
 
   return (
     <div style={styles.container}>
       <div style={styles.messages}>
+        {messages.length === 0 && !isConnecting ? (
+          <div style={styles.emptyState}>
+            Напишите вопрос, и ответ, обязательства и цитаты загрузятся из реального API.
+          </div>
+        ) : null}
+
         {messages.map((msg, i) => (
-          <div key={i} style={{
+          <div key={msg.id || i} style={{
             ...styles.bubble,
             ...(msg.role === 'user' ? styles.user : styles.assistant),
           }}>
             <div style={styles.roleLabel}>{msg.role === 'user' ? 'Вы' : 'Salyq AI'}</div>
-            <div>{msg.text}</div>
+            <div style={styles.messageText}>{msg.content}</div>
+
+            {msg.actionPlan && msg.actionPlan.length > 0 ? (
+              <div style={styles.metaBlock}>
+                <div style={styles.metaTitle}>План действий</div>
+                <ol style={styles.planList}>
+                  {msg.actionPlan.map((step, index) => (
+                    <li key={`${msg.id || i}-step-${index}`}>{step}</li>
+                  ))}
+                </ol>
+              </div>
+            ) : null}
+
+            {typeof msg.confidence === 'number' ? (
+              <div style={styles.confidenceRow}>
+                <span style={styles.confidenceLabel}>Уверенность ответа</span>
+                <span style={styles.confidenceValue}>{Math.round(msg.confidence * 100)}%</span>
+              </div>
+            ) : null}
           </div>
         ))}
+
+        {isSending ? (
+          <div style={{ ...styles.bubble, ...styles.assistant }}>
+            <div style={styles.roleLabel}>Salyq AI</div>
+            <div style={styles.loadingText}>Печатает...</div>
+          </div>
+        ) : null}
       </div>
-      <div style={styles.inputRow}>
+
+      {error ? <div style={styles.error}>{error}</div> : null}
+
+      <form style={styles.inputRow} onSubmit={handleSubmit}>
         <input
           style={styles.input}
           placeholder="Задайте вопрос о налогах..."
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => onInputChange(e.target.value)}
+          disabled={!isSessionReady || isSending}
         />
-        <button style={styles.sendBtn} disabled title="Демо — отправка отключена">
-          Отправить
+        <button
+          style={{
+            ...styles.sendBtn,
+            ...((!isSessionReady || isSending || !input.trim()) ? styles.sendBtnDisabled : {}),
+          }}
+          disabled={!isSessionReady || isSending || !input.trim()}
+          title={!isSessionReady ? 'Подключение к API...' : undefined}
+          type="submit"
+        >
+          {isConnecting ? 'Подключение...' : isSending ? 'Отправка...' : 'Отправить'}
         </button>
-      </div>
+      </form>
     </div>
   );
 }
@@ -41,6 +96,15 @@ const styles = {
     flex: 1,
     overflowY: 'auto',
     padding: '0 4px',
+  },
+  emptyState: {
+    padding: '16px 18px',
+    borderRadius: 12,
+    background: '#f7f8fb',
+    color: '#5b6475',
+    fontSize: 14,
+    lineHeight: 1.6,
+    marginBottom: 12,
   },
   bubble: {
     borderRadius: 12,
@@ -65,6 +129,54 @@ const styles = {
     marginBottom: 4,
     textTransform: 'uppercase',
   },
+  messageText: {
+    whiteSpace: 'pre-wrap',
+  },
+  metaBlock: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTop: '1px solid rgba(0,0,0,0.08)',
+  },
+  metaTitle: {
+    fontSize: 12,
+    fontWeight: 700,
+    marginBottom: 6,
+    color: '#495057',
+  },
+  planList: {
+    margin: 0,
+    paddingLeft: 18,
+    fontSize: 13,
+    color: '#333',
+  },
+  confidenceRow: {
+    marginTop: 12,
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+  },
+  confidenceLabel: {
+    fontSize: 12,
+    color: '#666',
+  },
+  confidenceValue: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: '#1a1a2e',
+  },
+  loadingText: {
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  error: {
+    marginTop: 12,
+    padding: '10px 12px',
+    borderRadius: 8,
+    background: '#fff1f0',
+    color: '#b42318',
+    fontSize: 13,
+  },
   inputRow: {
     display: 'flex',
     gap: 8,
@@ -85,8 +197,11 @@ const styles = {
     background: '#4361ee',
     color: '#fff',
     fontWeight: 600,
+    cursor: 'pointer',
+    fontSize: 14,
+  },
+  sendBtnDisabled: {
     cursor: 'not-allowed',
     opacity: 0.6,
-    fontSize: 14,
   },
 };
