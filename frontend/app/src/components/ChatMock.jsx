@@ -43,11 +43,26 @@ export default function ChatMock({
               </div>
             ) : null}
 
+            {msg.clarifyingQuestions && msg.clarifyingQuestions.length > 0 ? (
+              <div style={styles.metaBlock}>
+                <div style={styles.metaTitle}>Нужно уточнить</div>
+                <ul style={styles.questionList}>
+                  {msg.clarifyingQuestions.map((question, index) => (
+                    <li key={`${msg.id || i}-question-${index}`}>{question}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
             {typeof msg.confidence === 'number' ? (
               <div style={styles.confidenceRow}>
                 <span style={styles.confidenceLabel}>Уверенность ответа</span>
                 <span style={styles.confidenceValue}>{Math.round(msg.confidence * 100)}%</span>
               </div>
+            ) : null}
+
+            {msg.disclaimer ? (
+              <div style={styles.disclaimer}>{msg.disclaimer}</div>
             ) : null}
           </div>
         ))}
@@ -149,6 +164,12 @@ const styles = {
     fontSize: 13,
     color: '#333',
   },
+  questionList: {
+    margin: 0,
+    paddingLeft: 18,
+    fontSize: 13,
+    color: '#333',
+  },
   confidenceRow: {
     marginTop: 12,
     display: 'flex',
@@ -164,6 +185,12 @@ const styles = {
     fontSize: 12,
     fontWeight: 700,
     color: '#1a1a2e',
+  },
+  disclaimer: {
+    marginTop: 12,
+    fontSize: 12,
+    lineHeight: 1.5,
+    color: '#666',
   },
   loadingText: {
     color: '#666',
