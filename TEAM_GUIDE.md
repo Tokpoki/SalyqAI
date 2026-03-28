@@ -6,299 +6,200 @@
 
 ## Что мы строим
 
-Чат-бот, который помогает казахстанцам разобраться в налогах. Пользователь пишет вопрос → система ищет статьи НК РК → определяет обязательства → отвечает со ссылками на закон.
+Чат-бот для казахстанцев по налогам. Пользователь регистрируется, заполняет профиль → задаёт вопрос → система ищет статьи НК РК, определяет обязательства → отвечает со ссылками на закон. Интерфейс как у ChatGPT: много чатов, sidebar, история.
 
 ## Кто что читает
 
-| Человек | Прочитай обязательно | Туториал | Задачи |
-|---------|---------------------|----------|--------|
-| **Все** | Этот файл + `docs/api.yaml` | — | — |
-| **Даурен** | `backend/api_orchestrator/README.md` | `backend/api_orchestrator/tutorial-dauren.md` | `docs/todo-dauren.md` |
-| **Магжан** | `backend/data_rag_rules/README.md` | `backend/data_rag_rules/tutorial-magzhan.md` | `docs/todo-magzhan.md` |
-| **Димаш** | `frontend/README.md` | `frontend/tutorial-dimash.md` | `docs/todo-dimash.md` |
-
-**Не нужно** читать чужие туториалы и TODO — они про чужую зону.
+| Человек | Туториал | Задачи |
+|---------|----------|--------|
+| **Все** | Этот файл + `docs/api.yaml` | — |
+| **Даурен** | `backend/api_orchestrator/tutorial-dauren.md` | `docs/todo-dauren.md` |
+| **Магжан** | `backend/data_rag_rules/tutorial-magzhan.md` | `docs/todo-magzhan.md` |
+| **Димаш** | `frontend/tutorial-dimash.md` | `docs/todo-dimash.md` |
 
 ---
 
-## Карта файлов проекта
+## Сущности
 
+### User (пользователь)
 ```
-docs/
-├── api.yaml              ← КОНТРАКТ API (источник правды!)
-├── db-schema.sql         ← целевая схема БД
-├── todo-dauren.md        ← задачи Даурена
-├── todo-magzhan.md       ← задачи Магжана
-└── todo-dimash.md        ← задачи Димаша
-
-backend/
-├── api_orchestrator/     ← Даурен: API + оркестрация
-│   ├── src/main.py
-│   ├── src/routes/chat.py
-│   ├── tutorial-dauren.md
-│   └── README.md
-└── data_rag_rules/       ← Магжан: БД + RAG + правила
-    ├── src/db/database.py
-    ├── src/rag/           ← TODO
-    ├── src/rules/         ← TODO
-    ├── tutorial-magzhan.md
-    └── README.md
-
-frontend/                 ← Димаш: UI
-├── app/src/...
-├── tutorial-dimash.md
-└── README.md
-
-chroma/                   ← готовая Chroma vector DB (844 статьи НК РК)
-rk_tax_code_2026_articles.json   ← все статьи в JSON
-parse_tax_code_to_chroma.py      ← скрипт парсинга (уже отработал)
+{ id, email, password_hash, name, created_at }
 ```
 
----
-
-## Сущности (главные объекты системы)
-
-### 1. Session (сессия чата)
-Один разговор пользователя с ботом. Создаётся при старте чата.
+### Session (сессия чата)
+Один разговор. У каждого юзера может быть много сессий.
 ```
-{ id: uuid, status: "active", created_at: datetime }
+{ id, user_id, title, status, created_at }
 ```
 
-### 2. Message (сообщение)
-Одно сообщение в сессии. Роль: `user` или `assistant`.
+### Message (сообщение)
 ```
-{ id: uuid, session_id: uuid, role: "user"|"assistant", content: text }
-```
-
-### 3. Profile (профиль налогоплательщика)
-Данные о пользователе, собранные за сессию: тип (ИП/физлицо), режим, доход.
-```
-{ session_id, taxpayer_type, tax_regime, annual_income_kzt, has_rental_income, ... }
+{ id, session_id, role: "user"|"assistant", content, created_at }
 ```
 
-### 4. Obligation (обязательство)
-Что должен сдать/заплатить налогоплательщик: форма, дедлайн, основание.
+### Profile (профиль налогоплательщика)
+Один на юзера. Заполняется при регистрации, обновляется в настройках или из чата.
 ```
-{ code: "FORM_910_00", title: "Декларация 910.00", due_date_rule: "До 15 авг", basis: "ст. 686" }
-```
-
-### 5. Citation (ссылка на статью)
-Ссылка на конкретную статью НК РК в ответе.
-```
-{ article_number: "686", article_title: "Упрощённая декларация", snippet: "текст..." }
+{ user_id, taxpayer_type, tax_regime, annual_income_kzt, activity_type, has_rental_income, has_foreign_income, ... }
 ```
 
-### 6. Feedback (обратная связь)
-Лайк/дизлайк на ответ бота.
+### Obligation (обязательство)
 ```
-{ session_id, message_id, rating: "up"|"down", reason: "неточный ответ" }
+{ code, title, due_date_rule, basis }
+```
+
+### Citation (ссылка на статью)
+```
+{ article_number, article_title, snippet }
 ```
 
 ---
 
-## API контракт — `docs/api.yaml`
+## Эндпоинты API (v0.3.0)
 
-Это "договор" между фронтендом и бэкендом. В нём описано:
-- Какие эндпоинты существуют
-- Какие данные принимают
-- Какие данные возвращают
-- Точный формат каждого поля
-
-### Текущие эндпоинты (работают)
-
+### Auth (без токена)
 | Метод | Путь | Что делает |
 |-------|------|-----------|
-| GET | `/api/v1/health` | Проверка что сервер жив |
-| POST | `/api/v1/chat/sessions` | Создать сессию |
-| GET | `/api/v1/chat/sessions/{id}` | Получить сессию + историю |
+| POST | `/api/v1/auth/register` | Регистрация (email, пароль, имя, профиль?) |
+| POST | `/api/v1/auth/login` | Вход → access + refresh токены |
+| POST | `/api/v1/auth/refresh` | Обновить access token |
+| GET | `/api/v1/auth/me` | Инфо о текущем юзере + профиль |
+
+### Chat (требует Bearer token)
+| Метод | Путь | Что делает |
+|-------|------|-----------|
+| GET | `/api/v1/chat/sessions` | Список чатов юзера (для sidebar) |
+| POST | `/api/v1/chat/sessions` | Создать чат |
+| GET | `/api/v1/chat/sessions/{id}` | Чат + история сообщений |
 | POST | `/api/v1/chat/sessions/{id}/messages` | Отправить сообщение |
 
-### Запланированные эндпоинты (ещё не реализованы)
-
-| Метод | Путь | Кто делает |
+### Profile (требует Bearer token)
+| Метод | Путь | Что делает |
 |-------|------|-----------|
-| PATCH | `/api/v1/chat/sessions/{id}/profile` | Даурен |
-| POST | `/api/v1/feedback` | Даурен |
-| GET | `/api/v1/knowledge/versions` | Даурен |
-| POST | `/api/v1/rag/retrieve` | Магжан (функция) + Даурен (route) |
-| POST | `/api/v1/rules/evaluate` | Магжан (функция) + Даурен (route) |
+| GET | `/api/v1/user/profile` | Профиль текущего юзера |
+| PATCH | `/api/v1/user/profile` | Обновить профиль |
 
-### Как добавить новый эндпоинт
+### Другие
+| Метод | Путь | Что делает |
+|-------|------|-----------|
+| GET | `/api/v1/health` | Проверка (без токена) |
+| POST | `/api/v1/feedback` | Лайк/дизлайк |
 
-Это командный процесс. Вот как он происходит:
+Полный контракт: `docs/api.yaml`
 
-1. **Кто-то говорит:** "Нам нужен эндпоинт для X"
-2. **Обсуждаем втроём** (или в чате): какой путь, какие поля, какой формат
-3. **Тимлид (или кто обсудил)** обновляет `docs/api.yaml` — добавляет новый path и schema
-4. **Даурен** реализует эндпоинт в `backend/api_orchestrator/src/routes/`
-5. **Димаш** подключает на фронте
-6. **Магжан** добавляет нужные таблицы/функции если надо
+### Как работает Auth
 
-**Важно:** никто не добавляет эндпоинт "молча". Сначала api.yaml, потом код.
+1. Фронт отправляет `POST /auth/login` с email + пароль
+2. Backend проверяет, возвращает `access_token` + `refresh_token`
+3. Фронт сохраняет токены в localStorage
+4. Все запросы к API идут с заголовком `Authorization: Bearer <access_token>`
+5. Когда access_token истекает (30 мин) → фронт вызывает `POST /auth/refresh`
+6. Если refresh тоже истёк → logout, redirect на login
 
----
-
-## Как работать с Claude Code (AI-агентом)
-
-Каждый из вас может использовать Claude Code для написания кода. Вот как правильно:
-
-### Что скинуть агенту чтобы он понял контекст
-
-Скопируй ему свой туториал + текущую задачу из TODO. Пример промпта:
-
-**Даурен:**
-```
-Прочитай backend/api_orchestrator/tutorial-dauren.md и docs/todo-dauren.md.
-Сделай задачу: "Добавить валидацию UUID в path-параметрах".
-Работай только в backend/api_orchestrator/.
-```
-
-**Магжан:**
-```
-Прочитай backend/data_rag_rules/tutorial-magzhan.md и docs/todo-magzhan.md.
-Сделай задачу: "Написать src/rag/retriever.py".
-Chroma DB уже готова в chroma/, коллекция rk_tax_code_2026_articles_e5_large.
-Работай только в backend/data_rag_rules/.
-```
-
-**Димаш:**
-```
-Прочитай frontend/tutorial-dimash.md и docs/todo-dimash.md.
-Сделай задачу: "Подключить чат к реальному API на localhost:8000".
-Работай только в frontend/.
-```
-
-### Правила для агента (добавляй в промпт)
-
-```
-Ограничения:
-- Работай ТОЛЬКО в [твоя папка]
-- Не меняй docs/api.yaml без моего разрешения
-- Не трогай чужие папки
-- Следуй контракту из docs/api.yaml
-```
-
-### Если агент хочет поменять что-то за пределами твоей зоны
-
-Скажи ему "нет" и напиши тимлиду. Например:
-- Магжан: агент хочет поменять routes → скажи "нет", это зона Даурена
-- Димаш: агент хочет создать эндпоинт → скажи "нет", это зона Даурена
-- Даурен: агент хочет менять схему БД → скажи "нет", это зона Магжана
-
----
-
-## Git — как работать с ветками
-
-### Золотое правило: НИКОГДА не пуш в main напрямую
-
-```bash
-# 1. Перед началом работы
-git checkout main
-git pull
-
-# 2. Создать свою ветку
-git checkout -b даурен/название-задачи    # Даурен
-git checkout -b магжан/название-задачи    # Магжан
-git checkout -b димаш/название-задачи     # Димаш
-
-# 3. Делаешь работу...
-
-# 4. Сохранить
-git add backend/api_orchestrator/         # только свою папку!
-git commit -m "feat: описание что сделал"
-git push -u origin даурен/название-задачи
-
-# 5. Создать Pull Request на GitHub
-# main ← твоя-ветка
-```
-
-### Формат коммитов
-
-```
-feat: добавил эндпоинт профиля          ← новая функция
-fix: исправил 404 при создании сессии    ← исправление бага
-test: добавил тесты для retrieve          ← тесты
-style: перевёл стили на Tailwind          ← визуальные изменения
-```
-
----
-
-## Запуск проекта
-
-### Backend (терминал 1)
-```bash
-cd backend/api_orchestrator
-pip install -r requirements.txt
-uvicorn src.main:app --reload --port 8000
-```
-
-### Frontend (терминал 2)
-```bash
-cd frontend/app
-npm install
-npm run dev
-```
-
-### Проверить
-- Фронтенд: http://localhost:3000
-- Бэкенд: http://localhost:8000/docs (Swagger UI)
+### Тестовый аккаунт
+- Email: `test@mail.com`
+- Пароль: `123`
 
 ---
 
 ## Как устроен поток данных
 
 ```
-Пользователь пишет: "Какие налоги платит ИП на упрощёнке?"
+Пользователь → Регистрация (email, пароль, профиль) → JWT токен
          │
          ▼
-    [Фронтенд] POST /api/v1/chat/sessions/{id}/messages
+    Создаёт чат → Пишет вопрос
          │
          ▼
-    [Оркестратор — Даурен]
-         │
-         ├──→ [RAG — Магжан] retrieve("ИП упрощёнка") → статьи 683, 686, 687
-         │
-         ├──→ [Rules — Магжан] evaluate(profile) → форма 910, ОПВ, СО
-         │
-         ├──→ [LLM — Даурен] system prompt + статьи + правила → Claude API → ответ
-         │
-         └──→ Собрать финальный ответ: answer_text + citations + obligations
+    [Frontend] POST /sessions/{id}/messages + Bearer token
          │
          ▼
-    [Фронтенд] показать ответ + обязательства + цитаты
+    [API Orchestrator — Даурен]
+         │
+         ├──→ Проверить JWT → получить user_id
+         ├──→ Загрузить профиль юзера из БД
+         ├──→ [RAG — Магжан] retrieve() → статьи НК РК
+         ├──→ [Rules — Магжан] evaluate(profile) → обязательства
+         ├──→ [LLM — Даурен] system prompt + профиль + статьи + правила → Gemini → ответ
+         ├──→ Автоназвание чата (первое сообщение)
+         └──→ Сохранить в БД, вернуть ответ
+         │
+         ▼
+    [Frontend] показать ответ + obligations + citations inline
 ```
-
-Сейчас шаги RAG, Rules и LLM — заглушки. Магжан пишет RAG + Rules, Даурен пишет LLM-слой.
 
 ## Кто отвечает за "мозг" бота (LLM)
 
-**Даурен** — он пишет:
-- **System prompt** — инструкция для Gemini: "ты налоговый консультант, отвечай на основе статей НК РК, ссылайся на номера статей, не выдумывай"
-- **Вызов Gemini API** — отправка prompt + контекст → получение ответа
-- **Парсинг ответа** — Gemini вернёт текст, но API ожидает JSON с полями `answer_text`, `citations[]`, `obligations[]`, `confidence`. Нужно либо использовать JSON mode Gemini, либо промпт "верни в формате JSON"
+**Даурен** — system prompt + вызов Gemini. SDK: `google-generativeai`. Ключ: `GEMINI_API_KEY` в `.env`.
 
-**LLM = Google Gemini** (не Claude, не GPT). SDK: `google-generativeai`. Ключ: `GEMINI_API_KEY` в `.env`.
-
-Файлы будут жить в `backend/api_orchestrator/src/llm/`:
-- `prompt.py` — system prompt
-- `client.py` — вызов Gemini API
-
-System prompt — это НЕ код, а текст. Пример:
-```
-Ты — Salyq AI, налоговый консультант по законодательству Республики Казахстан.
-Отвечай ТОЛЬКО на основе приложенных статей НК РК.
-Всегда указывай номер статьи (например: "согласно ст. 686 НК РК").
-Если не уверен — скажи "рекомендую уточнить у специалиста".
-Язык: русский, простой и понятный.
-```
-
-Этот prompt будет дорабатываться итеративно — по мере тестирования качества ответов.
+Профиль юзера передаётся в prompt → Gemini знает кто спрашивает (ИП, физлицо и т.п.) → ответ персонализирован.
 
 ## Конфигурация (.env)
 
-Каждый модуль имеет `.env.example`. Скопируй → `.env`, заполни.
-
-- `backend/api_orchestrator/.env.example` — `GEMINI_API_KEY`, `DB_PATH`, `CHROMA_PATH`, ...
+- `backend/api_orchestrator/.env.example` — `GEMINI_API_KEY`, `JWT_SECRET`, `DB_PATH`, ...
 - `frontend/app/.env.example` — `VITE_API_URL`
 
-**`.env` файлы НЕ коммитятся** (в .gitignore). Ключи API — секретные.
+`.env` файлы НЕ коммитятся. Ключи API — секретные.
+
+---
+
+## Как работать с агентами
+
+Скопируй агенту свой туториал + задачу. Пример:
+
+**Даурен:**
+```
+Прочитай backend/api_orchestrator/tutorial-dauren.md и docs/todo-dauren.md.
+Сделай задачу: "2.2 — Auth эндпоинты".
+Работай только в backend/api_orchestrator/.
+```
+
+**Магжан:**
+```
+Прочитай backend/data_rag_rules/tutorial-magzhan.md и docs/todo-magzhan.md.
+Сделай задачу: "2.1 — Таблица users".
+Работай только в backend/data_rag_rules/ и migrations/.
+```
+
+**Димаш:**
+```
+Прочитай frontend/tutorial-dimash.md и docs/todo-dimash.md.
+Сделай задачу: "2.7 — Chat page".
+Работай только в frontend/.
+```
+
+Если агент лезет за пределы твоей зоны — скажи "нет", напиши тимлиду.
+
+---
+
+## Git
+
+```bash
+git checkout main && git pull
+git checkout -b имя/задача
+# работа...
+git add свою-папку/
+git commit -m "feat: описание"
+git push -u origin имя/задача
+# → Pull Request на GitHub
+```
+
+**Никогда не пуш в main напрямую.**
+
+---
+
+## Запуск
+
+```bash
+# Backend (терминал 1)
+cd backend/api_orchestrator
+pip install -r requirements.txt
+uvicorn src.main:app --reload --port 8000
+
+# Frontend (терминал 2)
+cd frontend/app
+npm install && npm run dev
+```
+
+- Фронт: http://localhost:3000
+- Backend Swagger: http://localhost:8000/docs

@@ -1,24 +1,108 @@
 openapi: 3.0.3
 info:
   title: Salyq AI API
-  version: 0.2.0
-  description: Contract-first MVP for personalized tax guidance (RAG + rules)
+  version: 0.3.0
+  description: Tax guidance chatbot — RAG + rules + Gemini LLM
 
 servers:
   - url: http://localhost:8000
 
 tags:
-  - name: System
+  - name: Auth
   - name: Chat
   - name: Profile
-  - name: Internal
-  - name: Knowledge
   - name: Feedback
+  - name: Internal
+  - name: System
+
+security:
+  - BearerAuth: []
 
 paths:
+
+  # ── Auth ────────────────────────────────────────────────────────
+
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Register new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "409":
+          description: Email already exists
+
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Wrong credentials
+
+  /api/v1/auth/refresh:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Refresh access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "200":
+          description: New tokens
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid refresh token
+
+  /api/v1/auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current user info + profile
+      responses:
+        "200":
+          description: User info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfo"
+
+  # ── System ──────────────────────────────────────────────────────
+
   /api/v1/health:
     get:
       tags: [System]
+      security: []
       summary: Service health
       responses:
         "200":
@@ -29,9 +113,26 @@ paths:
                 type: object
                 properties:
                   status: { type: string, example: ok }
-                  version: { type: string, example: 0.2.0 }
+                  version: { type: string, example: 0.3.0 }
+
+  # ── Chat Sessions ──────────────────────────────────────────────
 
   /api/v1/chat/sessions:
+    get:
+      tags: [Chat]
+      summary: List current user's chat sessions (for sidebar)
+      responses:
+        "200":
+          description: Sessions list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SessionSummary"
     post:
       tags: [Chat]
       summary: Create chat session
@@ -52,7 +153,7 @@ paths:
   /api/v1/chat/sessions/{sessionId}:
     get:
       tags: [Chat]
-      summary: Get session state
+      summary: Get session with message history
       parameters:
         - $ref: "#/components/parameters/SessionId"
       responses:
@@ -62,11 +163,15 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SessionDetail"
+        "403":
+          description: Session belongs to another user
+        "404":
+          description: Session not found
 
   /api/v1/chat/sessions/{sessionId}/messages:
     post:
       tags: [Chat]
-      summary: Send user message and receive advice
+      summary: Send message and receive advice
       parameters:
         - $ref: "#/components/parameters/SessionId"
       requestBody:
@@ -82,13 +187,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ChatMessageResponse"
+        "403":
+          description: Session belongs to another user
+        "404":
+          description: Session not found
 
-  /api/v1/chat/sessions/{sessionId}/profile:
+  # ── Profile ────────────────────────────────────────────────────
+
+  /api/v1/user/profile:
+    get:
+      tags: [Profile]
+      summary: Get current user's taxpayer profile
+      responses:
+        "200":
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
     patch:
       tags: [Profile]
-      summary: Update profile facts for session
-      parameters:
-        - $ref: "#/components/parameters/SessionId"
+      summary: Update current user's taxpayer profile
       requestBody:
         required: true
         content:
@@ -102,6 +221,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Profile"
+
+  # ── Feedback ───────────────────────────────────────────────────
+
+  /api/v1/feedback:
+    post:
+      tags: [Feedback]
+      summary: Save user feedback for answer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeedbackRequest"
+      responses:
+        "201":
+          description: Feedback saved
+
+  # ── Internal (RAG + Rules) ─────────────────────────────────────
 
   /api/v1/rag/retrieve:
     post:
@@ -141,7 +278,8 @@ paths:
 
   /api/v1/knowledge/versions:
     get:
-      tags: [Knowledge]
+      tags: [Internal]
+      security: []
       summary: List available KB versions
       responses:
         "200":
@@ -156,21 +294,14 @@ paths:
                     items:
                       type: string
 
-  /api/v1/feedback:
-    post:
-      tags: [Feedback]
-      summary: Save user feedback for answer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/FeedbackRequest"
-      responses:
-        "201":
-          description: Feedback saved
-
 components:
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
   parameters:
     SessionId:
       name: sessionId
@@ -178,19 +309,74 @@ components:
       required: true
       schema:
         type: string
-        format: uuid
 
   schemas:
+
+    # ── Auth ──────────────────────────────────────────────────────
+
+    RegisterRequest:
+      type: object
+      required: [email, password, name]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 1 }
+        name: { type: string }
+        profile:
+          $ref: "#/components/schemas/ProfilePatchRequest"
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token: { type: string }
+
+    AuthResponse:
+      type: object
+      properties:
+        user_id: { type: string }
+        email: { type: string }
+        name: { type: string }
+        access_token: { type: string }
+        refresh_token: { type: string }
+
+    UserInfo:
+      type: object
+      properties:
+        user_id: { type: string }
+        email: { type: string }
+        name: { type: string }
+        profile:
+          $ref: "#/components/schemas/Profile"
+
+    # ── Chat ──────────────────────────────────────────────────────
+
     CreateSessionRequest:
       type: object
       properties:
         channel: { type: string, example: web }
         locale: { type: string, example: ru-KZ }
 
+    SessionSummary:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
     Session:
       type: object
       properties:
-        id: { type: string, format: uuid }
+        id: { type: string }
+        user_id: { type: string }
+        title: { type: string, nullable: true }
         status: { type: string, example: active }
         knowledge_version: { type: string, example: tax_code_2026_v1 }
         created_at: { type: string, format: date-time }
@@ -200,8 +386,6 @@ components:
         - $ref: "#/components/schemas/Session"
         - type: object
           properties:
-            profile:
-              $ref: "#/components/schemas/Profile"
             messages:
               type: array
               items:
@@ -210,7 +394,7 @@ components:
     Message:
       type: object
       properties:
-        id: { type: string, format: uuid }
+        id: { type: string }
         role: { type: string, enum: [user, assistant, system] }
         content: { type: string }
         created_at: { type: string, format: date-time }
@@ -224,7 +408,7 @@ components:
     ChatMessageResponse:
       type: object
       properties:
-        message_id: { type: string, format: uuid }
+        message_id: { type: string }
         answer_text: { type: string }
         action_plan:
           type: array
@@ -243,6 +427,8 @@ components:
         confidence: { type: number }
         disclaimer: { type: string }
 
+    # ── Profile ───────────────────────────────────────────────────
+
     ProfilePatchRequest:
       type: object
       properties:
@@ -258,7 +444,7 @@ components:
     Profile:
       type: object
       properties:
-        session_id: { type: string, format: uuid }
+        user_id: { type: string }
         taxpayer_type: { type: string, nullable: true }
         tax_regime: { type: string, nullable: true }
         annual_income_kzt: { type: number, nullable: true }
@@ -269,13 +455,39 @@ components:
         residency_status: { type: string, nullable: true }
         updated_at: { type: string, format: date-time }
 
+    # ── Shared ────────────────────────────────────────────────────
+
+    Obligation:
+      type: object
+      properties:
+        code: { type: string, example: FORM_910_00 }
+        title: { type: string, example: Declaration 910.00 }
+        due_date_rule: { type: string, example: Before Aug 15 for H1 }
+        amount_kzt: { type: number, nullable: true }
+        basis: { type: string, example: art. 686 }
+
+    Citation:
+      type: object
+      properties:
+        article_number: { type: string }
+        article_title: { type: string }
+        snippet: { type: string }
+
+    FeedbackRequest:
+      type: object
+      required: [session_id, message_id, rating]
+      properties:
+        session_id: { type: string }
+        message_id: { type: string }
+        rating: { type: string, enum: [up, down] }
+        reason: { type: string, nullable: true }
+
     RetrieveRequest:
       type: object
       required: [query]
       properties:
         query: { type: string }
         top_k: { type: integer, default: 5 }
-        knowledge_version: { type: string, default: tax_code_2026_v1 }
 
     RetrieveResponse:
       type: object
@@ -307,28 +519,3 @@ components:
           type: array
           items:
             type: string
-
-    Obligation:
-      type: object
-      properties:
-        code: { type: string, example: FORM_910_00 }
-        title: { type: string, example: Declaration 910.00 }
-        due_date_rule: { type: string, example: Before Aug 15 for H1 }
-        amount_kzt: { type: number, nullable: true }
-        basis: { type: string, example: art. 686 }
-
-    Citation:
-      type: object
-      properties:
-        article_number: { type: string }
-        article_title: { type: string }
-        snippet: { type: string }
-
-    FeedbackRequest:
-      type: object
-      required: [session_id, message_id, rating]
-      properties:
-        session_id: { type: string, format: uuid }
-        message_id: { type: string, format: uuid }
-        rating: { type: string, enum: [up, down] }
-        reason: { type: string, nullable: true }

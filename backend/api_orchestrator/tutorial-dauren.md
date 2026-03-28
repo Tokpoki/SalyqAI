@@ -1,119 +1,113 @@
 # Туториал для Даурена — API Orchestrator
 
-Привет! Этот файл объясняет простыми словами, что ты делаешь, зачем, и как работать.
+## Что ты делаешь
 
----
-
-## Что ты делаешь?
-
-Ты пишешь **API** — это "двери", через которые фронтенд (то, что видит пользователь) общается с бэкендом (где хранятся данные и логика).
-
-Когда пользователь нажимает "Отправить" в чате, фронтенд посылает запрос на твой API, а ты возвращаешь ответ.
+Ты пишешь **API + auth + LLM**. Фронтенд общается с твоим сервером. Ты проверяешь кто юзер (JWT), принимаешь вопрос, ищешь статьи (через модуль Магжана), считаешь обязательства, вызываешь Gemini, возвращаешь ответ.
 
 ## Твоя папка
 
 ```
 backend/api_orchestrator/
 ├── src/
-│   ├── main.py          ← точка входа, тут запускается сервер
-│   └── routes/
-│       └── chat.py      ← тут живут эндпоинты (ручки API)
-├── tests/               ← сюда пиши тесты
-├── requirements.txt     ← зависимости Python
-└── README.md
+│   ├── main.py              ← FastAPI app
+│   ├── routes/
+│   │   ├── auth.py          ← регистрация, логин, refresh, me
+│   │   └── chat.py          ← сессии, сообщения
+│   ├── auth/
+│   │   ├── password.py      ← bcrypt хэширование
+│   │   ├── jwt_utils.py     ← создание/проверка JWT
+│   │   └── dependencies.py  ← get_current_user() для Depends
+│   ├── llm/
+│   │   ├── prompt.py        ← system prompt для Gemini
+│   │   └── client.py        ← вызов Gemini API
+│   └── utils/
+│       └── error_logger.py  ← логирование ошибок
+├── .env.example
+├── requirements.txt
+└── tests/
 ```
 
 ## Как запустить
 
 ```bash
 cd backend/api_orchestrator
+cp .env.example .env         # заполни GEMINI_API_KEY, JWT_SECRET
 pip install -r requirements.txt
 uvicorn src.main:app --reload --port 8000
 ```
 
-`--reload` значит сервер перезапустится автоматически при изменении кода.
+Swagger UI: http://localhost:8000/docs
 
-Открой http://localhost:8000/docs — там Swagger UI, можно тестировать API прямо в браузере.
+## Auth — как работает
 
-## Как работает код
+1. Юзер регистрируется → ты хэшируешь пароль bcrypt → сохраняешь в БД → выдаёшь JWT
+2. JWT = access_token (30 мин) + refresh_token (7 дней)
+3. Фронт шлёт `Authorization: Bearer <access_token>` в каждом запросе
+4. Ты декодируешь токен → получаешь `user_id` → знаешь кто просит
 
-1. `main.py` — создаёт приложение FastAPI, подключает CORS (чтобы фронтенд мог обращаться), подключает роуты
-2. `routes/chat.py` — 3 функции:
-   - `create_chat_session()` — создаёт новую сессию
-   - `get_chat_session()` — возвращает сессию с историей сообщений
-   - `send_message()` — принимает сообщение, сохраняет, возвращает ответ-заглушку
+### Пример кода JWT
 
-Сейчас ответ — это заглушка (stub). Твоя задача — постепенно заменить её на реальную логику.
+```python
+import jwt
+from datetime import datetime, timedelta
 
-## Конфигурация
-
-Перед запуском:
-1. Скопируй `.env.example` → `.env`
-2. Впиши свой `GEMINI_API_KEY`
-
-## LLM-слой (твоя ответственность)
-
-Ты отвечаешь за то, как бот "думает". Мы используем **Google Gemini** как LLM.
-
-Создай папку `src/llm/` с двумя файлами:
-
-1. **`prompt.py`** — system prompt (инструкция для Gemini):
-   - "Ты налоговый консультант по НК РК"
-   - "Отвечай на основе приложенных статей"
-   - "Ссылайся на номера статей"
-   - "Не выдумывай, при неуверенности скажи уточните"
-
-2. **`client.py`** — функция вызова Gemini:
-   - Принимает: system prompt + история чата + статьи из RAG + обязательства из Rules
-   - Вызывает Gemini API через `google-generativeai` Python SDK
-   - **Главная сложность:** Gemini вернёт текст, но API ожидает JSON: `{answer_text, citations[], obligations[], confidence}`. Используй JSON mode или промпт "верни ответ в формате JSON"
-   - Возвращает: answer_text, citations, confidence
-
-Ключ API в переменной окружения `GEMINI_API_KEY` (из `.env`).
-
-## Контракт API
-
-Все эндпоинты описаны в `docs/api.yaml`. Это "договор" между тобой и Димашем. Если ты меняешь формат ответа — обнови api.yaml и предупреди Димаша.
-
-## Как работать с Git
-
-### Перед началом работы
-```bash
-git checkout main
-git pull                    # забрать последние изменения
-git checkout -b dauren/task-name   # создать свою ветку
+def create_access_token(user_id: str) -> str:
+    payload = {
+        "sub": user_id,
+        "exp": datetime.utcnow() + timedelta(minutes=30),
+        "type": "access"
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 ```
 
-### После завершения работы
+### Пример FastAPI Depends
+
+```python
+from fastapi import Depends, HTTPException, Request
+
+def get_current_user(request: Request) -> dict:
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    if not token:
+        raise HTTPException(401, "Token missing")
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        return {"user_id": payload["sub"]}
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(401, "Token expired")
+
+# Использование:
+@router.post("/sessions")
+def create_session(user=Depends(get_current_user)):
+    user_id = user["user_id"]
+    ...
+```
+
+## LLM — Gemini
+
+```python
+import google.generativeai as genai
+genai.configure(api_key=GEMINI_API_KEY)
+model = genai.GenerativeModel("gemini-1.5-flash")
+response = model.generate_content([system_prompt, user_message])
+```
+
+## Контракт
+
+Все эндпоинты: `docs/api.yaml`. Если меняешь формат — обнови api.yaml и предупреди Димаша.
+
+## Git
+
 ```bash
-git add backend/api_orchestrator/   # добавить свои файлы
-git commit -m "feat: add profile endpoint"
+git checkout main && git pull
+git checkout -b dauren/task-name
+# работа...
+git add backend/api_orchestrator/
+git commit -m "feat: add auth endpoints"
 git push -u origin dauren/task-name
-```
-
-Затем создай Pull Request на GitHub (main ← dauren/task-name).
-
-### Правила веток
-- **Никогда** не пуш напрямую в `main`
-- Всегда работай в своей ветке `dauren/что-делаешь`
-- Перед пушем проверь что сервер запускается без ошибок
-
-### Формат коммитов
-```
-feat: добавил эндпоинт профиля
-fix: исправил 404 при создании сессии
-test: добавил тесты для chat routes
 ```
 
 ## Чего НЕ делать
 
-- Не трогай `backend/data_rag_rules/` — это зона Магжана
-- Не трогай `frontend/` — это зона Димаша
-- Не придумывай новые эндпоинты без обсуждения
-- Не меняй `docs/db-schema.sql` — это тоже Магжан
-
-## Если застрял
-
-1. Посмотри `docs/api.yaml` — там описан контракт
-2. Проверь http://localhost:8000/docs — Swagger покажет ошибки
-3. Спроси тимлида
+- Не трогай `backend/data_rag_rules/` — Магжан
+- Не трогай `frontend/` — Димаш
+- Не меняй `docs/db-schema.sql` — Магжан

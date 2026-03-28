@@ -4,67 +4,97 @@
 
 ---
 
-## Что уже готово (не трогай!)
+## Что изменилось в db-schema.sql
 
-- `chroma/` — Chroma vector DB, 844 статьи, embedding `intfloat/multilingual-e5-large`
-- `rk_tax_code_2026_articles.json` — все статьи в JSON
-- `parse_tax_code_to_chroma.py` — скрипт парсинга (уже отработал)
+Тимлид обновил `docs/db-schema.sql`. Вот что добавлено — чтобы ты знал что реализовывать:
 
-## Фаза 1 — RAG retriever
+**Новая таблица:** `users(id, email UNIQUE, password_hash, name, created_at)`
+**Изменения:** `chat_sessions` → добавлены `user_id`, `title`
+**Изменения:** `taxpayer_profiles` → `user_id` вместо `session_id` (unique per user)
+**Новая таблица:** `error_logs(id, user_id, session_id, error_type, error_message, stack_trace, created_at)`
+**Типы:** всё TEXT/REAL/INTEGER (SQLite). Boolean = INTEGER (0/1).
 
-- [ ] `pip install -r requirements.txt` (chromadb + sentence-transformers)
-  **Внимание:** sentence-transformers скачает модель ~2.2 ГБ при первом запуске. Это нормально, нужен интернет.
-- [ ] Создать `src/rag/__init__.py`
-- [ ] Создать `src/rag/retriever.py` с функцией `retrieve(query: str, top_k: int = 5) -> list[dict]`
-  - Подключиться к Chroma: `chromadb.PersistentClient(path=CHROMA_PATH)`
-  - Получить коллекцию: `client.get_collection("rk_tax_code_2026_articles_e5_large")`
-  - **Важный нюанс:** при создании Chroma использовался `SentenceTransformer("intfloat/multilingual-e5-large")` с префиксом `"query: "` для e5 моделей. При query тоже нужен этот префикс. Проверь как именно парсер загружал embeddings в `parse_tax_code_to_chroma.py`
-  - Вернуть формат, совпадающий с `Citation` в api.yaml: `{article_number, article_title, snippet, score}`
-- [ ] **Проверить руками** что поиск работает:
-  ```python
-  from src.rag.retriever import retrieve
-  results = retrieve("какие налоги платит ИП на упрощёнке")
-  # Должны быть статьи ~683, 686, 687
+Смотри полную схему: `docs/db-schema.sql`
+
+---
+
+## Phase 1 (доделать если не закончено)
+
+- [ ] `src/rag/retriever.py` — функция `retrieve(query, top_k)` поверх Chroma
+- [ ] `src/rules/engine.py` — функция `evaluate(profile)` → обязательства
+- [ ] Тесты для обоих
+
+---
+
+## Phase 2 — Auth DB + расширение схемы
+
+Ты делаешь первым — Даурен и Димаш зависят от твоих таблиц.
+
+### 2.1 — Таблица `users`
+- [ ] Создать `migrations/0003_add_users.sql`:
+  ```sql
+  CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    name TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email);
   ```
-- [ ] Путь к Chroma читать из env `CHROMA_PATH` (default: `../../chroma`)
+- [ ] Добавить `bcrypt` в `requirements.txt`
 
-## Фаза 2 — Rules Engine
+### 2.2 — Обновить `chat_sessions`
+- [ ] Создать `migrations/0004_sessions_user_id_title.sql`:
+  ```sql
+  ALTER TABLE chat_sessions ADD COLUMN user_id TEXT REFERENCES users(id);
+  ALTER TABLE chat_sessions ADD COLUMN title TEXT;
+  CREATE INDEX IF NOT EXISTS idx_sessions_user ON chat_sessions(user_id);
+  ```
 
-- [ ] Создать `src/rules/__init__.py`
-- [ ] Создать `src/rules/engine.py` с функцией `evaluate(profile: dict) -> dict`
-  - Вход: `profile` в формате `ProfilePatchRequest` из api.yaml (поля: `taxpayer_type`, `tax_regime`, `has_rental_income`, `has_foreign_income`, ...)
-  - Выход: `{obligations: [...], warnings: [...]}` в формате `RulesEvaluateResponse` из api.yaml
-  - Каждый obligation: `{code, title, due_date_rule, amount_kzt, basis}` — формат `Obligation` из api.yaml
-- [ ] Реализовать правила:
-  - ИП упрощёнка (`sole_proprietor` + `simplified`) → форма 910, ОПВ, СО
-  - Физлицо с арендой (`individual` + `has_rental_income: true`) → форма 240.00, ИПН 10%
-  - Иностранный доход (`has_foreign_income: true`) → форма 240.00, зачёт
-- [ ] Тесты в `tests/test_rules.py`
+### 2.3 — Обновить `taxpayer_profiles`
+- [ ] Создать `migrations/0005_profiles_user_id.sql`:
+  ```sql
+  ALTER TABLE taxpayer_profiles ADD COLUMN user_id TEXT REFERENCES users(id);
+  ```
+  - `user_id` = новый primary lookup (один профиль на юзера)
+  - `session_id` оставить nullable для совместимости
 
-## Фаза 3 — Расширить БД
+### 2.4 — Таблица `error_logs`
+- [ ] Создать `migrations/0006_error_logs.sql`:
+  ```sql
+  CREATE TABLE IF NOT EXISTS error_logs (
+    id TEXT PRIMARY KEY,
+    user_id TEXT REFERENCES users(id),
+    session_id TEXT,
+    error_type TEXT NOT NULL,
+    error_message TEXT NOT NULL,
+    stack_trace TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  ```
 
-Текущая БД (SQLite) имеет 2 таблицы. Целевая (`docs/db-schema.sql`) — 6 таблиц. Разница:
+### 2.5 — Новые CRUD в `database.py`
+- [ ] `create_user(user_id, email, password_hash, name)` → INSERT users
+- [ ] `get_user_by_email(email)` → SELECT users WHERE email
+- [ ] `get_user_by_id(user_id)` → SELECT users WHERE id
+- [ ] Обновить `create_session(session_id, user_id, created_at)` — добавить `user_id`
+- [ ] `update_session_title(session_id, title)` → UPDATE chat_sessions SET title
+- [ ] `get_sessions_by_user(user_id)` → SELECT chat_sessions WHERE user_id ORDER BY created_at DESC
+- [ ] `get_or_create_profile_by_user(user_id)` → SELECT or INSERT taxpayer_profiles
+- [ ] `update_profile_by_user(user_id, fields_dict)` → UPDATE taxpayer_profiles WHERE user_id
+- [ ] `insert_error_log(...)` → INSERT error_logs
 
-- [ ] Таблица `chat_sessions` — добавить поля `knowledge_version`, `updated_at` (сейчас отсутствуют)
-- [ ] Таблица `chat_messages` — добавить поля `advice_json`, `confidence` (сейчас отсутствуют)
-- [ ] Новая таблица `taxpayer_profiles` — профиль налогоплательщика в сессии
-- [ ] Новая таблица `extracted_facts` — факты, извлечённые из диалога (fact_key/fact_value)
-- [ ] Новая таблица `answer_citations` — ссылки на статьи в ответах
-- [ ] Новая таблица `feedback` — лайк/дизлайк
-- [ ] CRUD-функции для каждой новой таблицы в `src/db/database.py`
-- [ ] Миграции в `migrations/`: `0001_init.sql`, `0002_add_profiles.sql`, ...
+### 2.6 — Обновить DDL в `init_db()`
+- [ ] Добавить все новые таблицы в `_DDL` строку в `database.py`
+- [ ] Чтобы при `init_db()` на чистой базе создались все таблицы
 
-## Фаза 4 — Извлечение фактов из диалога
+### 2.7 — Seed тестового юзера
+- [ ] Создать `migrations/seed_test_user.py` (или SQL):
+  - email: `test@mail.com`
+  - password: `123` (bcrypt hash)
+  - name: `Test User`
+  - Генерация хэша: `python -c "import bcrypt; print(bcrypt.hashpw(b'123', bcrypt.gensalt()).decode())"`
 
-Кто-то должен парсить из текста пользователя: "Я ИП на упрощёнке, доход 12 млн" → `{taxpayer_type: "sole_proprietor", tax_regime: "simplified", annual_income_kzt: 12000000}`.
-
-- [ ] Решить с тимлидом: это делает LLM (Даурен) или отдельная функция (ты)?
-  - Вариант А: Gemini извлекает факты → Даурен вызывает `PATCH /profile`
-  - Вариант Б: отдельная функция `extract_facts(text) -> dict` у тебя
-- [ ] Реализовать выбранный вариант
-- [ ] Сохранять факты в `extracted_facts`
-
-## Фаза 5 — Интеграция
-
-- [ ] Экспортировать `retrieve()` и `evaluate()` так, чтобы Даурен мог их импортировать
-- [ ] Даурен зарегистрирует HTTP-routes для `/rag/retrieve` и `/rules/evaluate` (routes живут у него)
+### 2.8 — Обновить `docs/db-schema.sql`
+- [ ] Уже обновлён тимлидом — проверь что твой DDL в `database.py` совпадает с `docs/db-schema.sql`

@@ -1,135 +1,156 @@
 # Туториал для Димаша — Frontend
 
-Привет! Этот файл объясняет простыми словами, что ты делаешь, зачем, и как работать.
+## Что ты делаешь
 
----
+Ты делаешь **весь UI** — от landing page до чата. Интерфейс как у ChatGPT: sidebar с чатами слева, чат по центру, минималистичный дизайн.
 
-## Что ты делаешь?
-
-Ты делаешь **фронтенд** — это то, что видит пользователь в браузере. Красивый чат, панель с профилем, карточки налоговых обязательств.
-
-Сейчас всё работает на моковых (фейковых) данных. Твоя задача — постепенно подключить реальный backend API.
-
-## Твоя папка
-
-```
-frontend/
-├── app/
-│   ├── src/
-│   │   ├── pages/
-│   │   │   └── DemoPage.jsx      ← главная страница
-│   │   ├── components/
-│   │   │   ├── ChatMock.jsx       ← компонент чата
-│   │   │   ├── ProfileMock.jsx    ← профиль налогоплательщика
-│   │   │   └── ObligationsMock.jsx ← обязательства + цитаты
-│   │   ├── mocks/
-│   │   │   └── scenarios.js       ← фейковые данные (3 сценария)
-│   │   └── main.jsx               ← точка входа
-│   ├── package.json
-│   └── vite.config.js
-└── README.md
-```
-
-## Как запустить
-
-```bash
-cd frontend/app
-npm install
-npm run dev
-```
-
-Открой http://localhost:3000 в браузере.
-
-## Как работает код
-
-1. `main.jsx` — запускает React-приложение
-2. `DemoPage.jsx` — главная страница с тремя колонками:
-   - Левая: профиль налогоплательщика
-   - Центр: чат
-   - Правая: обязательства и цитаты
-3. `scenarios.js` — три набора фейковых данных (ИП, аренда, программист)
-4. Переключатель сценариев в шапке — меняет данные на странице
-
-## Стек который нужно освоить
-
-Сейчас стек минимальный. Для продакшна нужно перейти на:
+## Стек
 
 | Инструмент | Зачем |
 |---|---|
-| **TypeScript** | Ловит ошибки до запуска. Вместо `.jsx` будешь писать `.tsx` |
-| **Tailwind CSS** | Стили через классы (`className="bg-blue-500 p-4 rounded"`) вместо inline `style={{}}` |
-| **shadcn/ui** | Готовые красивые компоненты — кнопки, карточки, модалки |
-| **TanStack Query** | Удобная работа с API — загрузка данных, кеширование, loading-состояния |
+| **TypeScript** | Ловит ошибки до запуска |
+| **Tailwind CSS** | Стили через классы (`className="bg-white p-4"`) |
+| **shadcn/ui** | Готовые компоненты (Button, Input, Card, Skeleton) |
 | **React Router** | Навигация между страницами |
+| **TanStack Query** | Работа с API (загрузка, кеш, loading) |
+| **framer-motion** | Анимации |
+| **lucide-react** | Иконки |
 
-Не обязательно всё сразу. Начни с Tailwind + TypeScript.
+## Установка
 
-## Как подключить реальный API
+```bash
+cd frontend/app
 
-Backend работает на http://localhost:8000. Пример:
+# Tailwind
+npm install -D tailwindcss postcss autoprefixer
+npx tailwindcss init -p
 
-```javascript
-// Создать сессию
-const res = await fetch('http://localhost:8000/api/v1/chat/sessions', {
-  method: 'POST'
-});
-const session = await res.json();
-// session.id — это UUID сессии
+# shadcn/ui
+npx shadcn-ui@latest init
 
-// Отправить сообщение
-const res2 = await fetch(`http://localhost:8000/api/v1/chat/sessions/${session.id}/messages`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ text: 'Какие налоги платит ИП?' })
-});
-const answer = await res2.json();
-// answer.answer_text — текст ответа
-// answer.obligations — список обязательств
-// answer.citations — ссылки на статьи
+# Остальное
+npm install react-router-dom @tanstack/react-query framer-motion lucide-react
 ```
 
-## Как работать с Git
+## Структура (Phase 2)
 
-### Перед началом работы
+```
+frontend/app/src/
+├── main.tsx                    ← entry point
+├── App.tsx                     ← routes
+├── api/
+│   ├── client.ts               ← базовый fetch + Bearer token
+│   ├── auth.ts                 ← register, login, refresh, getMe
+│   ├── chat.ts                 ← listSessions, createSession, sendMessage
+│   └── profile.ts              ← getProfile, updateProfile
+├── lib/
+│   └── auth.ts                 ← localStorage: getToken, setTokens, clearTokens
+├── components/
+│   ├── ProtectedRoute.tsx       ← redirect если нет токена
+│   ├── Sidebar.tsx              ← список чатов + "Новый чат"
+│   ├── ChatMessage.tsx          ← один пузырь сообщения
+│   ├── ChatInput.tsx            ← input + кнопка отправки
+│   ├── ObligationsInline.tsx    ← обязательства внутри ответа бота
+│   └── CitationsInline.tsx      ← цитаты внутри ответа бота
+├── pages/
+│   ├── LandingPage.tsx          ← описание + форма входа
+│   ├── LoginPage.tsx
+│   ├── RegisterPage.tsx         ← 2 шага: credentials → profile
+│   ├── ChatPage.tsx             ← sidebar + чат
+│   └── SettingsPage.tsx         ← профиль + logout
+```
+
+## Как подключить API
+
+Backend работает на http://localhost:8000. Используй `VITE_API_URL` из `.env`.
+
+```typescript
+// src/api/client.ts
+const API = import.meta.env.VITE_API_URL;
+
+export async function apiFetch(path: string, options: RequestInit = {}) {
+  const token = localStorage.getItem('access_token');
+  const res = await fetch(`${API}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
+    },
+  });
+  if (res.status === 401) {
+    // Попробовать refresh, или redirect на /login
+    localStorage.clear();
+    window.location.href = '/login';
+  }
+  return res.json();
+}
+
+// src/api/auth.ts
+export const login = (email: string, password: string) =>
+  apiFetch('/api/v1/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+
+// src/api/chat.ts
+export const listSessions = () => apiFetch('/api/v1/chat/sessions');
+export const createSession = () => apiFetch('/api/v1/chat/sessions', { method: 'POST' });
+export const sendMessage = (sessionId: string, text: string) =>
+  apiFetch(`/api/v1/chat/sessions/${sessionId}/messages`, {
+    method: 'POST',
+    body: JSON.stringify({ text }),
+  });
+```
+
+## Дизайн
+
+**Стиль:** чистый минимализм. Vercel / Linear вдохновение.
+- Белый фон, серые borders (1px)
+- Один акцент: blue-600
+- Много пустого пространства (padding)
+- Subtle shadows, нет ярких цветов
+- Плавные анимации (framer-motion)
+
+## Страницы
+
+### Landing (`/`)
+- Слева: "Salyq AI" + описание + 3 фичи
+- Справа: форма входа (email + пароль + кнопка "Войти")
+- Если залогинен → redirect `/chat`
+
+### Register (`/register`)
+- Шаг 1: email, пароль, ФИО → "Далее"
+- Шаг 2: профиль (всё скипаемое) → "Готово" или "Пропустить"
+- → redirect `/chat`
+
+### Chat (`/chat`)
+```
+┌──────────┬──────────────────────────────┐
+│ Salyq AI │  Чат: ИП налоги              │
+│          │                              │
+│ + Новый  │  [user] Какие налоги...      │
+│          │  [bot]  Согласно ст.686..    │
+│ Сегодня  │    📋 3 обязательства ▼      │
+│  ИП      │    📎 2 статьи ▼             │
+│  Аренда  │                              │
+│          │  ┌────────────────────────┐   │
+│ ⚙ Настр. │  │ Введите вопрос...    ➤ │   │
+│          │  └────────────────────────┘   │
+└──────────┴──────────────────────────────┘
+```
+
+## Git
+
 ```bash
-git checkout main
-git pull
+git checkout main && git pull
 git checkout -b dimash/task-name
-```
-
-### После завершения работы
-```bash
 git add frontend/
-git commit -m "feat: connect chat to real API"
+git commit -m "feat: add chat page"
 git push -u origin dimash/task-name
-```
-
-Затем создай Pull Request на GitHub (main ← dimash/task-name).
-
-### Правила
-- **Никогда** не пуш напрямую в `main`
-- Всегда работай в ветке `dimash/что-делаешь`
-- Перед пушем проверь что `npm run dev` работает без ошибок
-
-### Формат коммитов
-```
-feat: подключил чат к реальному API
-fix: исправил отображение цитат
-style: перевёл стили на Tailwind
 ```
 
 ## Чего НЕ делать
 
-- Не трогай `backend/` — это зона Даурена и Магжана
+- Не трогай `backend/`
 - Не меняй `docs/api.yaml` без обсуждения
-- Не добавляй свои API эндпоинты
-
-## Контракт с бэкендом
-
-Все форматы запросов и ответов описаны в `docs/api.yaml`. Если бэкенд возвращает не то, что там написано — это баг бэкенда, скажи Даурену.
-
-## Если застрял
-
-1. Открой http://localhost:8000/docs — там Swagger UI, можно потыкать API руками
-2. Посмотри `docs/api.yaml` — формат ответов
-3. Спроси тимлида
