@@ -89,7 +89,12 @@ def _require_db_func(name: str):
     return fn
 
 
-@router.post("/register", status_code=201, response_model=AuthResponse)
+@router.post(
+    "/register",
+    status_code=201,
+    response_model=AuthResponse,
+    responses={409: {"description": "Email already exists"}},
+)
 def register(body: RegisterRequest):
     get_user_by_email = _require_db_func("get_user_by_email")
     create_user = _require_db_func("create_user")
@@ -104,7 +109,7 @@ def register(body: RegisterRequest):
 
     if body.profile is not None:
         update_profile_by_user = _require_db_func("update_profile_by_user")
-        update_profile_by_user(user_id=user_id, fields_dict=body.profile.model_dump(exclude_none=True))
+        update_profile_by_user(user_id=user_id, fields=body.profile.model_dump(exclude_none=True))
 
     return {
         "user_id": user_id,
@@ -115,7 +120,11 @@ def register(body: RegisterRequest):
     }
 
 
-@router.post("/login", response_model=AuthResponse)
+@router.post(
+    "/login",
+    response_model=AuthResponse,
+    responses={401: {"description": "Wrong credentials"}},
+)
 def login(body: LoginRequest):
     get_user_by_email = _require_db_func("get_user_by_email")
 
@@ -133,7 +142,11 @@ def login(body: LoginRequest):
     }
 
 
-@router.post("/refresh", response_model=AuthResponse)
+@router.post(
+    "/refresh",
+    response_model=AuthResponse,
+    responses={401: {"description": "Invalid refresh token"}},
+)
 def refresh(body: RefreshRequest):
     get_user_by_id = _require_db_func("get_user_by_id")
 

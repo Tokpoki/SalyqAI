@@ -2,6 +2,7 @@
 
 import sys
 import logging
+import os
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -28,7 +29,8 @@ logging.basicConfig(level=logging.INFO)
 app = FastAPI(title="Salyq AI API", version="0.3.0")
 settings = get_settings()
 
-db_module.DB_PATH = settings.db_path
+# Keep db module path resolution aligned with api_orchestrator settings.
+os.environ["DB_PATH"] = str(settings.db_path)
 
 app.add_middleware(
     CORSMiddleware,

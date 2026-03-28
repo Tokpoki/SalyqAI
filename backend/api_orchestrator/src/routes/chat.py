@@ -156,7 +156,14 @@ def create_chat_session(
     }
 
 
-@router.get("/sessions/{sessionId}", response_model=SessionDetailResponse)
+@router.get(
+    "/sessions/{sessionId}",
+    response_model=SessionDetailResponse,
+    responses={
+        403: {"description": "Session belongs to another user"},
+        404: {"description": "Session not found"},
+    },
+)
 def get_chat_session(sessionId: UUID, current_user: dict = Depends(get_current_user)):
     get_session = _require_db_func("get_session")
     get_messages = _require_db_func("get_messages")
@@ -188,7 +195,14 @@ def get_chat_session(sessionId: UUID, current_user: dict = Depends(get_current_u
     }
 
 
-@router.post("/sessions/{sessionId}/messages", response_model=ChatMessageResponse)
+@router.post(
+    "/sessions/{sessionId}/messages",
+    response_model=ChatMessageResponse,
+    responses={
+        403: {"description": "Session belongs to another user"},
+        404: {"description": "Session not found"},
+    },
+)
 def send_message(
     sessionId: UUID,
     body: SendMessageRequest,

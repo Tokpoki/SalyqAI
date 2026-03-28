@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import uuid
 
 from db import database as db_module
 
@@ -27,6 +28,7 @@ def log_error(
     insert_error_log = getattr(db_module, "insert_error_log", None)
     if callable(insert_error_log):
         insert_error_log(
+            error_id=str(uuid.uuid4()),
             user_id=user_id,
             session_id=session_id,
             error_type=error_type,
