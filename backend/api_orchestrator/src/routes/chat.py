@@ -14,6 +14,80 @@ from src.config import get_settings
 from src.llm.client import generate_answer, generate_chat_title
 from src.utils.error_logger import log_error
 
+_SYNONYM_MAP = {
+    "упрощенк": ["упрощен", "специальн налогов режим", "декларац"],
+    "ип": ["индивидуальн предприниматель", "предприниматель"],
+    "ндс": ["добавленн стоимост", "НДС"],
+    "ипн": ["индивидуальн подоходн", "ИПН"],
+    "кпн": ["корпоративн подоходн", "КПН"],
+    "соцналог": ["социальн налог"],
+    "пенсионн": ["обязательн пенсионн", "ОППВ"],
+    "патент": ["патент", "специальн налогов режим"],
+    "аренд": ["имущественн доход", "аренд"],
+    "зарплат": ["доход работник", "оплат труд"],
+    "физлиц": ["физическ лиц"],
+    "юрлиц": ["юридическ лиц"],
+}
+
+
+def _expand_query_terms(query: str) -> list[str]:
+    """Expand user query into formal legal terms for better retrieval."""
+    q_lower = query.lower().replace("ё", "е")
+    terms = []
+
+    for colloquial, formal_list in _SYNONYM_MAP.items():
+        if colloquial in q_lower:
+            for formal in formal_list:
+                terms.extend(formal.split())
+
+    words = q_lower.split()
+    for w in words:
+        if len(w) > 4:
+            terms.append(w.replace("ё", "е"))
+
+    return list(dict.fromkeys(terms))[:8]
+
+
+def _keyword_retrieve(query: str, top_k: int = 5) -> list[dict]:
+    """Keyword retrieval from Chroma, ranked by number of matching terms."""
+    try:
+        import chromadb
+        settings = get_settings()
+        client = chromadb.PersistentClient(path=str(settings.chroma_path))
+        collection = client.get_collection(settings.chroma_collection)
+
+        terms = _expand_query_terms(query)
+        if not terms:
+            return []
+
+        scored: dict[str, dict] = {}
+
+        for term in terms:
+            try:
+                results = collection.get(
+                    where_document={"$contains": term},
+                    include=["documents", "metadatas"],
+                    limit=20,
+                )
+                for i, doc_id in enumerate(results["ids"]):
+                    if doc_id not in scored:
+                        meta = results["metadatas"][i] if results["metadatas"] else {}
+                        doc = results["documents"][i] if results["documents"] else ""
+                        scored[doc_id] = {
+                            "article_number": meta.get("article_number"),
+                            "article_title": meta.get("article_title"),
+                            "snippet": " ".join(doc.split())[:300],
+                            "score": 0,
+                        }
+                    scored[doc_id]["score"] += 1
+            except Exception:
+                continue
+
+        ranked = sorted(scored.values(), key=lambda x: x["score"], reverse=True)
+        return ranked[:top_k]
+    except Exception:
+        return []
+
 router = APIRouter(prefix="/api/v1/chat", tags=["Chat"])
 settings = get_settings()
 
@@ -32,6 +106,12 @@ class Message(BaseModel):
     role: str
     content: str
     created_at: str
+    action_plan: list[str] = Field(default_factory=list)
+    obligations: list = Field(default_factory=list)
+    clarifying_questions: list[str] = Field(default_factory=list)
+    citations: list = Field(default_factory=list)
+    confidence: float | None = None
+    disclaimer: str | None = None
 
 
 class SessionSummary(BaseModel):
@@ -176,6 +256,31 @@ def get_chat_session(sessionId: UUID, current_user: dict = Depends(get_current_u
     _assert_session_owner(session, current_user["id"])
 
     messages = get_messages(session_id_str)
+
+    def _build_message(m: dict) -> dict:
+        import json as _json
+        msg = {
+            "id": m["id"],
+            "role": m["role"],
+            "content": m["content"],
+            "created_at": m["created_at"],
+        }
+        advice_raw = m.get("advice_json")
+        if advice_raw and m["role"] == "assistant":
+            advice = advice_raw if isinstance(advice_raw, dict) else {}
+            if isinstance(advice_raw, str):
+                try:
+                    advice = _json.loads(advice_raw)
+                except Exception:
+                    advice = {}
+            msg["action_plan"] = advice.get("action_plan", [])
+            msg["obligations"] = advice.get("obligations", [])
+            msg["clarifying_questions"] = advice.get("clarifying_questions", [])
+            msg["citations"] = advice.get("citations", [])
+            msg["disclaimer"] = advice.get("disclaimer")
+        msg["confidence"] = m.get("confidence")
+        return msg
+
     return {
         "id": session["id"],
         "user_id": session["user_id"],
@@ -183,16 +288,29 @@ def get_chat_session(sessionId: UUID, current_user: dict = Depends(get_current_u
         "status": session["status"],
         "knowledge_version": settings.knowledge_version,
         "created_at": session.get("created_at"),
-        "messages": [
-            {
-                "id": m["id"],
-                "role": m["role"],
-                "content": m["content"],
-                "created_at": m["created_at"],
-            }
-            for m in messages
-        ],
+        "messages": [_build_message(m) for m in messages],
     }
+
+
+@router.delete(
+    "/sessions/{sessionId}",
+    responses={
+        403: {"description": "Session belongs to another user"},
+        404: {"description": "Session not found"},
+    },
+)
+def delete_chat_session(sessionId: UUID, current_user: dict = Depends(get_current_user)):
+    get_session = _require_db_func("get_session")
+    delete_session = _require_db_func("delete_session")
+
+    session_id_str = str(sessionId)
+    session = get_session(session_id_str)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    _assert_session_owner(session, current_user["id"])
+    delete_session(session_id_str)
+    return {"ok": True}
 
 
 @router.post(
@@ -234,11 +352,39 @@ def send_message(
             for m in get_messages(session_id_str)
             if m.get("role") in {"user", "assistant", "system"}
         ]
-        llm_output = generate_answer(history=history, rag_articles=[], rules_result={"obligations": []})
+
+        rag_articles = _keyword_retrieve(query=body.text, top_k=5)
+
+        # Load user profile for personalization
+        profile = {}
+        get_profile_fn = getattr(db_module, "get_or_create_profile_by_user", None)
+        if callable(get_profile_fn):
+            try:
+                profile = get_profile_fn(current_user["id"]) or {}
+            except Exception:
+                pass
+
+        profile["name"] = current_user.get("name", "")
+        profile["email"] = current_user.get("email", "")
+
+        rules_result = {"obligations": [], "profile": profile}
+        llm_output = generate_answer(history=history, rag_articles=rag_articles, rules_result=rules_result)
 
         assistant_msg_id = str(uuid.uuid4())
         answer_text = llm_output["answer_text"]
-        insert_message(assistant_msg_id, session_id_str, "assistant", answer_text, now)
+        assistant_now = datetime.now(timezone.utc).isoformat()
+        advice_data = {
+            "action_plan": llm_output["action_plan"],
+            "obligations": llm_output["obligations"],
+            "clarifying_questions": llm_output["clarifying_questions"],
+            "citations": llm_output["citations"],
+            "disclaimer": llm_output["disclaimer"],
+        }
+        insert_message(
+            assistant_msg_id, session_id_str, "assistant", answer_text, assistant_now,
+            advice_json=advice_data,
+            confidence=llm_output["confidence"],
+        )
 
         if user_message_count == 0:
             background_tasks.add_task(_set_title_async, session_id_str, body.text)

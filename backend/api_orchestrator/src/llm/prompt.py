@@ -5,9 +5,10 @@ from __future__ import annotations
 import json
 
 SYSTEM_PROMPT = """Ты — Salyq AI, налоговый консультант по законодательству Республики Казахстан.
-Отвечай ТОЛЬКО на основе переданных статей НК РК и фактов профиля.
+Отвечай ТОЛЬКО на основе переданных статей НК РК и фактов профиля пользователя.
 Всегда указывай номер статьи, если используешь норму закона.
 Не выдумывай факты и нормы. Если данных недостаточно — задай уточняющие вопросы.
+Если передан профиль пользователя (taxpayer_type, tax_regime, annual_income_kzt и т.д.) — используй эти данные для персонализации ответа. Обращайся к пользователю по имени, если оно указано.
 Язык ответа: русский, простой и понятный.
 Верни строго JSON по заданной схеме, без markdown и без дополнительного текста."""
 
@@ -41,10 +42,16 @@ def build_user_prompt(
         "disclaimer": "string",
     }
 
+    profile = rules_result.get("profile", {})
+    profile_section = ""
+    if profile:
+        profile_section = f"Профиль пользователя:\n{json.dumps(profile, ensure_ascii=False)}\n\n"
+
     return (
         "Сформируй ответ пользователю в JSON.\n\n"
+        f"{profile_section}"
         f"История диалога:\n{json.dumps(history, ensure_ascii=False)}\n\n"
         f"RAG-статьи:\n{json.dumps(rag_articles, ensure_ascii=False)}\n\n"
-        f"Результат правил:\n{json.dumps(rules_result, ensure_ascii=False)}\n\n"
+        f"Результат правил:\n{json.dumps(rules_result.get('obligations', []), ensure_ascii=False)}\n\n"
         f"Схема JSON:\n{json.dumps(schema_hint, ensure_ascii=False)}\n"
     )

@@ -1,4 +1,4 @@
-"""Gemini client and response parsing for chat answers."""
+"""LLM client and response parsing for chat answers."""
 
 from __future__ import annotations
 
@@ -6,7 +6,8 @@ import json
 import re
 from typing import Any
 
-import google.generativeai as genai
+# import google.generativeai as genai  # Gemini — temporarily disabled
+from openai import OpenAI
 
 from src.config import get_settings
 from src.llm.prompt import SYSTEM_PROMPT, build_user_prompt
@@ -93,50 +94,83 @@ def _normalize_output(raw: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# ── Gemini implementation (commented out) ──────────────────────────────────
+# def _generate_gemini(history, rag_articles, rules_result):
+#     settings = get_settings()
+#     api_key = settings.gemini_api_key
+#     if not api_key:
+#         return _fallback_answer()
+#     model_name = settings.gemini_model
+#     prompt = build_user_prompt(history=history, rag_articles=rag_articles, rules_result=rules_result)
+#     genai.configure(api_key=api_key)
+#     model = genai.GenerativeModel(model_name)
+#     response = model.generate_content(
+#         [SYSTEM_PROMPT, prompt],
+#         generation_config={"response_mime_type": "application/json"},
+#     )
+#     raw_text = getattr(response, "text", "") or ""
+#     raw_data = _extract_json_object(raw_text)
+#     return _normalize_output(raw_data)
+
+
+# ── OpenAI implementation ──────────────────────────────────────────────────
+def _generate_openai(history, rag_articles, rules_result):
+    settings = get_settings()
+    api_key = settings.openai_api_key
+    if not api_key:
+        return _fallback_answer()
+
+    model_name = settings.openai_model
+    prompt = build_user_prompt(history=history, rag_articles=rag_articles, rules_result=rules_result)
+
+    client = OpenAI(api_key=api_key)
+    response = client.chat.completions.create(
+        model=model_name,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": prompt},
+        ],
+        response_format={"type": "json_object"},
+    )
+    raw_text = response.choices[0].message.content or ""
+    raw_data = _extract_json_object(raw_text)
+    return _normalize_output(raw_data)
+
+
 def generate_answer(
     history: list[dict],
     rag_articles: list[dict],
     rules_result: dict,
 ) -> dict[str, Any]:
-    settings = get_settings()
-    api_key = settings.gemini_api_key
-    if not api_key:
-        return _fallback_answer()
-
-    model_name = settings.gemini_model
-    prompt = build_user_prompt(history=history, rag_articles=rag_articles, rules_result=rules_result)
-
     try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(model_name)
-        response = model.generate_content(
-            [SYSTEM_PROMPT, prompt],
-            generation_config={"response_mime_type": "application/json"},
-        )
-        raw_text = getattr(response, "text", "") or ""
-        raw_data = _extract_json_object(raw_text)
-        return _normalize_output(raw_data)
-    except Exception:
+        return _generate_openai(history, rag_articles, rules_result)
+    except Exception as exc:
+        import traceback
+        traceback.print_exc()
         return _fallback_answer()
+
+
+def _generate_title_openai(first_user_message: str) -> str:
+    settings = get_settings()
+    if not settings.openai_api_key:
+        return "Новый чат"
+
+    client = OpenAI(api_key=settings.openai_api_key)
+    response = client.chat.completions.create(
+        model=settings.openai_model,
+        messages=[
+            {
+                "role": "user",
+                "content": f"Дай название 3-5 слов на русском для чата, начавшегося с: '{first_user_message}'. Верни только название.",
+            },
+        ],
+    )
+    title = (response.choices[0].message.content or "").strip().strip("\"'")
+    return title[:120] if title else "Новый чат"
 
 
 def generate_chat_title(first_user_message: str) -> str:
-    settings = get_settings()
-    if not settings.gemini_api_key:
-        return "Новый чат"
-
-    prompt = (
-        "Дай название 3-5 слов на русском для чата, начавшегося с: "
-        f"'{first_user_message}'. Верни только название."
-    )
-
     try:
-        genai.configure(api_key=settings.gemini_api_key)
-        model = genai.GenerativeModel(settings.gemini_model)
-        response = model.generate_content(prompt)
-        title = (getattr(response, "text", "") or "").strip().strip("\"'")
-        if not title:
-            return "Новый чат"
-        return title[:120]
+        return _generate_title_openai(first_user_message)
     except Exception:
         return "Новый чат"

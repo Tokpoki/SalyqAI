@@ -536,6 +536,17 @@ def update_session_status(
         conn.close()
 
 
+def delete_session(session_id: str) -> bool:
+    conn = get_connection()
+    try:
+        conn.execute("DELETE FROM chat_messages WHERE session_id = ?", (session_id,))
+        conn.execute("DELETE FROM chat_sessions WHERE id = ?", (session_id,))
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
 def update_session_title(session_id: str, title: str) -> dict[str, Any] | None:
     conn = get_connection()
     try:
@@ -617,7 +628,7 @@ def get_messages(session_id: str) -> list[dict[str, Any]]:
     conn = get_connection()
     try:
         rows = conn.execute(
-            "SELECT * FROM chat_messages WHERE session_id = ? ORDER BY created_at, id",
+            "SELECT * FROM chat_messages WHERE session_id = ? ORDER BY created_at, rowid",
             (session_id,),
         ).fetchall()
         return [_row_to_dict(row) or {} for row in rows]

@@ -12,6 +12,12 @@ export interface Message {
   role: "user" | "assistant" | "system";
   content: string;
   created_at: string;
+  action_plan?: string[];
+  obligations?: Obligation[];
+  clarifying_questions?: string[];
+  citations?: Citation[];
+  confidence?: number | null;
+  disclaimer?: string | null;
 }
 
 export interface SessionDetail {
@@ -67,5 +73,12 @@ export function sendMessage(sessionId: string, text: string) {
   return apiFetch<ChatMessageResponse>(
     `/api/v1/chat/sessions/${sessionId}/messages`,
     { method: "POST", body: JSON.stringify({ text }) },
+  );
+}
+
+export function deleteSession(sessionId: string) {
+  return apiFetch<{ ok: boolean }>(
+    `/api/v1/chat/sessions/${sessionId}`,
+    { method: "DELETE" },
   );
 }
