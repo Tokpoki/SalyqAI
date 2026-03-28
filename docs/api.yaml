@@ -1,0 +1,521 @@
+openapi: 3.0.3
+info:
+  title: Salyq AI API
+  version: 0.3.0
+  description: Tax guidance chatbot — RAG + rules + Gemini LLM
+
+servers:
+  - url: http://localhost:8000
+
+tags:
+  - name: Auth
+  - name: Chat
+  - name: Profile
+  - name: Feedback
+  - name: Internal
+  - name: System
+
+security:
+  - BearerAuth: []
+
+paths:
+
+  # ── Auth ────────────────────────────────────────────────────────
+
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Register new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "409":
+          description: Email already exists
+
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Wrong credentials
+
+  /api/v1/auth/refresh:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Refresh access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "200":
+          description: New tokens
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid refresh token
+
+  /api/v1/auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current user info + profile
+      responses:
+        "200":
+          description: User info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfo"
+
+  # ── System ──────────────────────────────────────────────────────
+
+  /api/v1/health:
+    get:
+      tags: [System]
+      security: []
+      summary: Service health
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+                  version: { type: string, example: 0.3.0 }
+
+  # ── Chat Sessions ──────────────────────────────────────────────
+
+  /api/v1/chat/sessions:
+    get:
+      tags: [Chat]
+      summary: List current user's chat sessions (for sidebar)
+      responses:
+        "200":
+          description: Sessions list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SessionSummary"
+    post:
+      tags: [Chat]
+      summary: Create chat session
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSessionRequest"
+      responses:
+        "201":
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+
+  /api/v1/chat/sessions/{sessionId}:
+    get:
+      tags: [Chat]
+      summary: Get session with message history
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      responses:
+        "200":
+          description: Session details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionDetail"
+        "403":
+          description: Session belongs to another user
+        "404":
+          description: Session not found
+
+  /api/v1/chat/sessions/{sessionId}/messages:
+    post:
+      tags: [Chat]
+      summary: Send message and receive advice
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatMessageRequest"
+      responses:
+        "200":
+          description: Advice generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatMessageResponse"
+        "403":
+          description: Session belongs to another user
+        "404":
+          description: Session not found
+
+  # ── Profile ────────────────────────────────────────────────────
+
+  /api/v1/user/profile:
+    get:
+      tags: [Profile]
+      summary: Get current user's taxpayer profile
+      responses:
+        "200":
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+    patch:
+      tags: [Profile]
+      summary: Update current user's taxpayer profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfilePatchRequest"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Profile"
+
+  # ── Feedback ───────────────────────────────────────────────────
+
+  /api/v1/feedback:
+    post:
+      tags: [Feedback]
+      summary: Save user feedback for answer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeedbackRequest"
+      responses:
+        "201":
+          description: Feedback saved
+
+  # ── Internal (RAG + Rules) ─────────────────────────────────────
+
+  /api/v1/rag/retrieve:
+    post:
+      tags: [Internal]
+      summary: Internal retrieval from vector DB
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RetrieveRequest"
+      responses:
+        "200":
+          description: Retrieved chunks
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RetrieveResponse"
+
+  /api/v1/rules/evaluate:
+    post:
+      tags: [Internal]
+      summary: Internal deterministic rule evaluation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RulesEvaluateRequest"
+      responses:
+        "200":
+          description: Rules result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RulesEvaluateResponse"
+
+  /api/v1/knowledge/versions:
+    get:
+      tags: [Internal]
+      security: []
+      summary: List available KB versions
+      responses:
+        "200":
+          description: KB versions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  versions:
+                    type: array
+                    items:
+                      type: string
+
+components:
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+
+  schemas:
+
+    # ── Auth ──────────────────────────────────────────────────────
+
+    RegisterRequest:
+      type: object
+      required: [email, password, name]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 1 }
+        name: { type: string }
+        profile:
+          $ref: "#/components/schemas/ProfilePatchRequest"
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token: { type: string }
+
+    AuthResponse:
+      type: object
+      properties:
+        user_id: { type: string }
+        email: { type: string }
+        name: { type: string }
+        access_token: { type: string }
+        refresh_token: { type: string }
+
+    UserInfo:
+      type: object
+      properties:
+        user_id: { type: string }
+        email: { type: string }
+        name: { type: string }
+        profile:
+          $ref: "#/components/schemas/Profile"
+
+    # ── Chat ──────────────────────────────────────────────────────
+
+    CreateSessionRequest:
+      type: object
+      properties:
+        channel: { type: string, example: web }
+        locale: { type: string, example: ru-KZ }
+
+    SessionSummary:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    Session:
+      type: object
+      properties:
+        id: { type: string }
+        user_id: { type: string }
+        title: { type: string, nullable: true }
+        status: { type: string, example: active }
+        knowledge_version: { type: string, example: tax_code_2026_v1 }
+        created_at: { type: string, format: date-time }
+
+    SessionDetail:
+      allOf:
+        - $ref: "#/components/schemas/Session"
+        - type: object
+          properties:
+            messages:
+              type: array
+              items:
+                $ref: "#/components/schemas/Message"
+
+    Message:
+      type: object
+      properties:
+        id: { type: string }
+        role: { type: string, enum: [user, assistant, system] }
+        content: { type: string }
+        created_at: { type: string, format: date-time }
+
+    ChatMessageRequest:
+      type: object
+      required: [text]
+      properties:
+        text: { type: string }
+
+    ChatMessageResponse:
+      type: object
+      properties:
+        message_id: { type: string }
+        answer_text: { type: string }
+        action_plan:
+          type: array
+          items: { type: string }
+        obligations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Obligation"
+        clarifying_questions:
+          type: array
+          items: { type: string }
+        citations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Citation"
+        confidence: { type: number }
+        disclaimer: { type: string }
+
+    # ── Profile ───────────────────────────────────────────────────
+
+    ProfilePatchRequest:
+      type: object
+      properties:
+        taxpayer_type: { type: string, enum: [individual, sole_proprietor, legal_entity] }
+        tax_regime: { type: string }
+        annual_income_kzt: { type: number }
+        employees_count: { type: integer }
+        activity_type: { type: string }
+        has_foreign_income: { type: boolean }
+        has_rental_income: { type: boolean }
+        residency_status: { type: string, enum: [resident, non_resident] }
+
+    Profile:
+      type: object
+      properties:
+        user_id: { type: string }
+        taxpayer_type: { type: string, nullable: true }
+        tax_regime: { type: string, nullable: true }
+        annual_income_kzt: { type: number, nullable: true }
+        employees_count: { type: integer, nullable: true }
+        activity_type: { type: string, nullable: true }
+        has_foreign_income: { type: boolean, nullable: true }
+        has_rental_income: { type: boolean, nullable: true }
+        residency_status: { type: string, nullable: true }
+        updated_at: { type: string, format: date-time }
+
+    # ── Shared ────────────────────────────────────────────────────
+
+    Obligation:
+      type: object
+      properties:
+        code: { type: string, example: FORM_910_00 }
+        title: { type: string, example: Declaration 910.00 }
+        due_date_rule: { type: string, example: Before Aug 15 for H1 }
+        amount_kzt: { type: number, nullable: true }
+        basis: { type: string, example: art. 686 }
+
+    Citation:
+      type: object
+      properties:
+        article_number: { type: string }
+        article_title: { type: string }
+        snippet: { type: string }
+
+    FeedbackRequest:
+      type: object
+      required: [session_id, message_id, rating]
+      properties:
+        session_id: { type: string }
+        message_id: { type: string }
+        rating: { type: string, enum: [up, down] }
+        reason: { type: string, nullable: true }
+
+    RetrieveRequest:
+      type: object
+      required: [query]
+      properties:
+        query: { type: string }
+        top_k: { type: integer, default: 5 }
+
+    RetrieveResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              score: { type: number }
+              citation:
+                $ref: "#/components/schemas/Citation"
+
+    RulesEvaluateRequest:
+      type: object
+      required: [profile]
+      properties:
+        profile:
+          $ref: "#/components/schemas/ProfilePatchRequest"
+
+    RulesEvaluateResponse:
+      type: object
+      properties:
+        obligations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Obligation"
+        warnings:
+          type: array
+          items:
+            type: string
