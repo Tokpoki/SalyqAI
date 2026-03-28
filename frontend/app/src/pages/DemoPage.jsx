@@ -3,10 +3,15 @@ import scenarios from '../mocks/scenarios';
 import ProfileMock from '../components/ProfileMock';
 import ChatMock from '../components/ChatMock';
 import ObligationsMock from '../components/ObligationsMock';
-import { createSession, sendMessage } from '../api/client';
+import { login, getMe } from '../api/auth';
+import { createSession, getSession, sendMessage } from '../api/chat';
+import { getProfile } from '../api/profile';
+import { clearTokens, hasTokens } from '../lib/auth';
 
 const scenarioKeys = Object.keys(scenarios);
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const DEMO_EMAIL = 'test@mail.com';
+const DEMO_PASSWORD = '123';
 
 export default function DemoPage() {
   const [active, setActive] = useState(scenarioKeys[0]);
@@ -19,9 +24,75 @@ export default function DemoPage() {
   const [input, setInput] = useState('');
   const [obligations, setObligations] = useState([]);
   const [citations, setCitations] = useState([]);
+  const [profile, setProfile] = useState(data.profile);
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState('');
+  const [useContractAuth, setUseContractAuth] = useState(false);
+
+  function mapApiMessages(apiMessages) {
+    return Array.isArray(apiMessages)
+      ? apiMessages.map((message, index) => ({
+          id: message.id || `message-${index}`,
+          role: message.role,
+          content: message.content || '',
+        }))
+      : [];
+  }
+
+  async function resolveAuthMode() {
+    if (hasTokens()) {
+      return true;
+    }
+
+    try {
+      await login(DEMO_EMAIL, DEMO_PASSWORD);
+      return true;
+    } catch (authError) {
+      if ([404, 405, 501].includes(authError?.status)) {
+        return false;
+      }
+
+      if (authError?.status === 401) {
+        clearTokens();
+        throw new Error(`Тестовый аккаунт ${DEMO_EMAIL} / ${DEMO_PASSWORD} не прошёл авторизацию.`);
+      }
+
+      return false;
+    }
+  }
+
+  async function loadProfileSnapshot(contractAuthEnabled) {
+    if (!contractAuthEnabled) {
+      return data.profile;
+    }
+
+    try {
+      const me = await getMe();
+
+      if (me?.profile || me?.name || me?.email) {
+        return {
+          ...(me?.profile || {}),
+          name: me?.name,
+          email: me?.email,
+        };
+      }
+    } catch (profileError) {
+      if (![404, 405, 501].includes(profileError?.status)) {
+        throw profileError;
+      }
+    }
+
+    try {
+      return await getProfile({ auth: true });
+    } catch (profileError) {
+      if ([404, 405, 501].includes(profileError?.status)) {
+        return data.profile;
+      }
+
+      throw profileError;
+    }
+  }
 
   useEffect(() => {
     function handleResize() {
@@ -43,23 +114,34 @@ export default function DemoPage() {
       setMessages([]);
       setObligations([]);
       setCitations([]);
+      setProfile(data.profile);
       setInput('');
       setIsCreatingSession(true);
       setError('');
 
       try {
-        const session = await createSession();
+        const contractAuthEnabled = await resolveAuthMode();
+        const profileSnapshot = await loadProfileSnapshot(contractAuthEnabled);
+        const session = await createSession(
+          contractAuthEnabled ? { channel: 'web', locale: 'ru-KZ' } : undefined,
+          { auth: contractAuthEnabled }
+        );
 
         if (!session || !session.id) {
           throw new Error('Missing session id');
         }
 
+        const sessionDetail = await getSession(session.id, { auth: contractAuthEnabled });
+
         if (!cancelled) {
+          setUseContractAuth(contractAuthEnabled);
           setSessionId(session.id);
+          setProfile(profileSnapshot || data.profile);
+          setMessages(mapApiMessages(sessionDetail?.messages));
         }
       } catch (sessionError) {
         if (!cancelled) {
-          setError(`Не удалось подключиться к backend API: ${apiUrl}.`);
+          setError(sessionError?.message || `Не удалось подключиться к backend API: ${apiUrl}.`);
         }
       } finally {
         if (!cancelled) {
@@ -96,22 +178,43 @@ export default function DemoPage() {
     setError('');
 
     try {
-      const response = await sendMessage(sessionId, text);
+      const response = await sendMessage(sessionId, text, { auth: useContractAuth });
+      const sessionDetail = await getSession(sessionId, { auth: useContractAuth });
 
-      setMessages((currentMessages) => [
-        ...currentMessages,
-        {
-          id: response.message_id || `assistant-${Date.now()}`,
-          role: 'assistant',
-          content: response.answer_text || 'Ответ получен, но текст ответа отсутствует.',
-          actionPlan: Array.isArray(response.action_plan) ? response.action_plan : [],
-          confidence: typeof response.confidence === 'number' ? response.confidence : null,
-        },
-      ]);
+      setMessages((currentMessages) => {
+        const syncedMessages = mapApiMessages(sessionDetail?.messages);
+
+        if (!syncedMessages.length) {
+          return [
+            ...currentMessages,
+            {
+              id: response.message_id || `assistant-${Date.now()}`,
+              role: 'assistant',
+              content: response.answer_text || 'Ответ получен, но текст ответа отсутствует.',
+              actionPlan: Array.isArray(response.action_plan) ? response.action_plan : [],
+              clarifyingQuestions: Array.isArray(response.clarifying_questions) ? response.clarifying_questions : [],
+              confidence: typeof response.confidence === 'number' ? response.confidence : null,
+              disclaimer: response.disclaimer || '',
+            },
+          ];
+        }
+
+        const nextMessages = [...syncedMessages];
+        const lastMessage = nextMessages[nextMessages.length - 1];
+
+        if (lastMessage?.role === 'assistant') {
+          lastMessage.actionPlan = Array.isArray(response.action_plan) ? response.action_plan : [];
+          lastMessage.clarifyingQuestions = Array.isArray(response.clarifying_questions) ? response.clarifying_questions : [];
+          lastMessage.confidence = typeof response.confidence === 'number' ? response.confidence : null;
+          lastMessage.disclaimer = response.disclaimer || '';
+        }
+
+        return nextMessages;
+      });
       setObligations(Array.isArray(response.obligations) ? response.obligations : []);
       setCitations(Array.isArray(response.citations) ? response.citations : []);
     } catch (messageError) {
-      setError(`Не удалось получить ответ от API. Проверь, что backend запущен по адресу ${apiUrl}.`);
+      setError(messageError?.message || `Не удалось получить ответ от API. Проверь, что backend запущен по адресу ${apiUrl}.`);
     } finally {
       setIsSending(false);
     }
@@ -205,7 +308,7 @@ export default function DemoPage() {
 
             <div style={styles.sidebarContent}>
               {sidebarTab === 'profile' ? (
-                <ProfileMock profile={data.profile} />
+                <ProfileMock profile={profile} />
               ) : (
                 <ObligationsMock obligations={obligations} citations={citations} />
               )}
