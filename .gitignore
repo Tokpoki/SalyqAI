@@ -1,21 +1,14 @@
-# Python
 .venv/
 __pycache__/
 *.pyc
 *.db
 .env
-
-# Data
-chroma/
 chroma_rk_tax_code_2026/
-
-# Frontend
 frontend/app/node_modules/
 frontend/app/dist/
-frontend/app/.vite/
-
-# IDE / Tools
 .claude/
+mcp.json
 .mcp.json
+chroma/
 .playwright-mcp/
-*.png
+frontend/app/.vite/

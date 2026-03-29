@@ -26,6 +26,7 @@ export default function LoginPage() {
     } catch (err: unknown) {
       const apiErr = err as { status?: number };
       if (apiErr.status === 401) setError("Неверный email или пароль");
+      else if (err instanceof TypeError) setError("Не удалось подключиться к серверу");
       else setError("Ошибка сервера. Попробуйте позже.");
     } finally {
       setLoading(false);

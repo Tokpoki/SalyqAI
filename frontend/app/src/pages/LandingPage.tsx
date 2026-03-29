@@ -64,7 +64,7 @@ const steps = [
 
 const stats = [
   { value: "1 700+", label: "Статей НК РК" },
-  { value: "<5 сек", label: "Время ответа" },
+  { value: "Персональный", label: "Подход к каждому" },
   { value: "24/7", label: "Доступность" },
   { value: "100%", label: "На основе закона" },
 ];
@@ -141,8 +141,8 @@ export default function LandingPage() {
       <section ref={heroRef} className="relative min-h-screen flex items-center justify-center pt-20">
         {/* Background decorations */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute -top-40 -right-40 h-[600px] w-[600px] rounded-full bg-emerald-500/10 blur-[120px] dark:bg-emerald-500/5" />
-          <div className="absolute -bottom-40 -left-40 h-[500px] w-[500px] rounded-full bg-sky-500/10 blur-[120px] dark:bg-sky-500/5" />
+          <div className="absolute -top-20 right-[10%] h-[500px] w-[500px] rounded-full bg-emerald-500/10 blur-[120px] dark:bg-emerald-500/5" />
+          <div className="absolute -bottom-20 left-[10%] h-[400px] w-[400px] rounded-full bg-sky-500/10 blur-[120px] dark:bg-sky-500/5" />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[400px] w-[400px] rounded-full bg-teal-500/8 blur-[100px] dark:bg-teal-500/3" />
         </div>
 

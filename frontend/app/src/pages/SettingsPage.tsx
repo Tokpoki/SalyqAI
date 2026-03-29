@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, LogOut, Loader2, Scale, Building2, Briefcase, DollarSign, Save, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, LogOut, Loader2, Scale, Building2, Briefcase, Save, CheckCircle2 } from "lucide-react";
+import MoneyInput from "@/components/MoneyInput";
 import { getProfile as _getProfile, updateProfile as _updateProfile, type Profile } from "@/api/profile";
 import { clearTokens } from "@/lib/auth";
 import { DEV_BYPASS, mockApi } from "@/lib/dev";
@@ -149,16 +150,11 @@ export default function SettingsPage() {
 
             <div>
               <label className="mb-1.5 block text-sm font-medium">Годовой доход (тенге)</label>
-              <div className="relative">
-                <DollarSign size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
-                <input
-                  type="number"
-                  value={annualIncome}
-                  onChange={(e) => setAnnualIncome(e.target.value)}
-                  className={inputClass}
-                  placeholder="0"
-                />
-              </div>
+              <MoneyInput
+                value={annualIncome}
+                onChange={setAnnualIncome}
+                className={inputClass}
+              />
             </div>
 
             <div>

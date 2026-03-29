@@ -291,7 +291,7 @@ function EmptyState({ onNewChat }: { onNewChat: () => void }) {
   ];
 
   return (
-    <div className="flex h-full flex-col items-center justify-center px-4 text-center">
+    <div className="flex h-full flex-col items-center justify-center px-4">
       {/* Decorative bg */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 h-[300px] w-[300px] rounded-full bg-emerald-500/5 blur-[100px]" />
@@ -300,9 +300,9 @@ function EmptyState({ onNewChat }: { onNewChat: () => void }) {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative z-10"
+        className="relative z-10 flex flex-col items-center text-center"
       >
-        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl gradient-bg shadow-xl shadow-emerald-500/20">
+        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl gradient-bg shadow-xl shadow-emerald-500/20">
           <Sparkles size={28} className="text-white" />
         </div>
         <h2 className="text-xl font-bold">

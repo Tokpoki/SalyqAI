@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Scale, ArrowLeft, ArrowRight, User, Mail, Lock, Building2, Briefcase, DollarSign } from "lucide-react";
+import { Scale, ArrowLeft, ArrowRight, User, Mail, Lock, Building2, Briefcase } from "lucide-react";
+import MoneyInput from "@/components/MoneyInput";
 import { register } from "@/api/auth";
 import { cn } from "@/lib/utils";
 
@@ -194,16 +195,11 @@ export default function RegisterPage() {
                 </div>
                 <div>
                   <label className="mb-1.5 block text-sm font-medium">Годовой доход (тенге)</label>
-                  <div className="relative">
-                    <DollarSign size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
-                    <input
-                      type="number"
-                      value={annualIncome}
-                      onChange={(e) => setAnnualIncome(e.target.value)}
-                      className={inputClass}
-                      placeholder="0"
-                    />
-                  </div>
+                  <MoneyInput
+                    value={annualIncome}
+                    onChange={setAnnualIncome}
+                    className={inputClass}
+                  />
                 </div>
                 <div>
                   <label className="mb-1.5 block text-sm font-medium">Вид деятельности</label>
