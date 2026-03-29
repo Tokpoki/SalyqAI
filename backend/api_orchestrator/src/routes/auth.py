@@ -9,6 +9,7 @@ from db import database as db_module
 from src.auth.dependencies import get_current_user
 from src.auth.jwt_utils import create_access_token, create_refresh_token, decode_token
 from src.auth.password import hash_password, verify_password
+from src.oked.checker import detect_oked
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
 
@@ -109,7 +110,15 @@ def register(body: RegisterRequest):
 
     if body.profile is not None:
         update_profile_by_user = _require_db_func("update_profile_by_user")
-        update_profile_by_user(user_id=user_id, fields=body.profile.model_dump(exclude_none=True))
+        fields = body.profile.model_dump(exclude_none=True)
+        # Auto-detect OKED from activity description
+        activity = fields.get("activity_type")
+        if activity:
+            oked = detect_oked(activity)
+            fields["oked_code"] = oked["oked"]
+            fields["oked_name"] = oked["oked_name"]
+            fields["oked_banned"] = 1 if oked["banned"] else 0
+        update_profile_by_user(user_id=user_id, fields=fields)
 
     return {
         "user_id": user_id,

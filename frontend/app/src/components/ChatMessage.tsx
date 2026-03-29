@@ -1,9 +1,18 @@
 import { motion } from "framer-motion";
-import { User, Sparkles } from "lucide-react";
+import { User, Sparkles, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Obligation, Citation } from "@/api/chat";
 import ObligationsInline from "./ObligationsInline";
 import CitationsInline from "./CitationsInline";
+
+const DEBT_KEYWORDS = ["задолженност", "долг", "недоимк", "пен", "неуплат", "просрочк", "переплат"];
+const KGD_DEBT_URL = "https://portal.kgd.gov.kz/ru/pages/info-services/info-absence-tax-debt";
+
+function shouldShowDebtButton(content: string, role: string): boolean {
+  if (role !== "assistant") return false;
+  const lower = content.toLowerCase();
+  return DEBT_KEYWORDS.some((kw) => lower.includes(kw));
+}
 
 interface ChatMessageProps {
   role: "user" | "assistant" | "system";
@@ -104,6 +113,18 @@ export default function ChatMessage({
 
         {disclaimer && (
           <p className="mt-2 text-[11px] italic text-muted-foreground/60">{disclaimer}</p>
+        )}
+
+        {shouldShowDebtButton(content, role) && (
+          <a
+            href={KGD_DEBT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-4 py-2.5 text-xs font-semibold text-primary transition-all hover:bg-primary/20 hover:border-primary/50"
+          >
+            <ExternalLink size={14} />
+            Проверить задолженность на портале КГД
+          </a>
         )}
       </div>
     </motion.div>

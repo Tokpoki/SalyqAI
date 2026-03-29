@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, LogOut, Loader2, Scale, Building2, Briefcase, Save, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, LogOut, Loader2, Scale, Building2, Briefcase, Save, CheckCircle2, ShieldCheck, ShieldAlert } from "lucide-react";
 import MoneyInput from "@/components/MoneyInput";
 import { getProfile as _getProfile, updateProfile as _updateProfile, type Profile } from "@/api/profile";
 import { clearTokens } from "@/lib/auth";
@@ -138,13 +138,19 @@ export default function SettingsPage() {
               <label className="mb-1.5 block text-sm font-medium">Налоговый режим</label>
               <div className="relative">
                 <Briefcase size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
-                <input
-                  type="text"
+                <select
                   value={taxRegime}
                   onChange={(e) => setTaxRegime(e.target.value)}
                   className={inputClass}
-                  placeholder="Например: упрощённая декларация"
-                />
+                >
+                  <option value="">Не указано</option>
+                  <option value="patent">Патент</option>
+                  <option value="simplified">Упрощённая декларация</option>
+                  <option value="fixed_deduction">Фиксированный вычет</option>
+                  <option value="general">Общеустановленный режим (ОУР)</option>
+                  <option value="retail_tax">Розничный налог</option>
+                  <option value="special_mobile">Специальный мобильное приложение</option>
+                </select>
               </div>
             </div>
 
@@ -166,6 +172,24 @@ export default function SettingsPage() {
                 className={inputClassNoIcon}
                 placeholder="Например: разработка ПО"
               />
+              {profile?.oked_code && (
+                <div className={`mt-2 flex items-start gap-2 rounded-xl px-4 py-3 text-sm ${
+                  profile.oked_banned
+                    ? "bg-red-500/10 text-red-400 border border-red-500/20"
+                    : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                }`}>
+                  {profile.oked_banned ? <ShieldAlert size={16} className="mt-0.5 shrink-0" /> : <ShieldCheck size={16} className="mt-0.5 shrink-0" />}
+                  <div>
+                    <span className="font-semibold">ОКЭД {profile.oked_code}</span>
+                    {profile.oked_name && <span> — {profile.oked_name}</span>}
+                    <p className="mt-0.5 text-xs opacity-75">
+                      {profile.oked_banned
+                        ? "Запрещено для упрощённой декларации (Постановление №970)"
+                        : "Разрешено для упрощённой декларации"}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex gap-4">

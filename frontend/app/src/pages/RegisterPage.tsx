@@ -184,13 +184,19 @@ export default function RegisterPage() {
                   <label className="mb-1.5 block text-sm font-medium">Налоговый режим</label>
                   <div className="relative">
                     <Briefcase size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
-                    <input
-                      type="text"
+                    <select
                       value={taxRegime}
                       onChange={(e) => setTaxRegime(e.target.value)}
                       className={inputClass}
-                      placeholder="Например: упрощённая декларация"
-                    />
+                    >
+                      <option value="">Не указано</option>
+                      <option value="patent">Патент</option>
+                      <option value="simplified">Упрощённая декларация</option>
+                      <option value="fixed_deduction">Фиксированный вычет</option>
+                      <option value="general">Общеустановленный режим (ОУР)</option>
+                      <option value="retail_tax">Розничный налог</option>
+                      <option value="special_mobile">Специальный мобильное приложение</option>
+                    </select>
                   </div>
                 </div>
                 <div>

@@ -29,6 +29,9 @@ PROFILE_FIELDS = (
     "has_foreign_income",
     "has_rental_income",
     "residency_status",
+    "oked_code",
+    "oked_name",
+    "oked_banned",
 )
 
 _DDL = """
@@ -68,6 +71,9 @@ CREATE TABLE IF NOT EXISTS taxpayer_profiles (
     has_foreign_income INTEGER,
     has_rental_income INTEGER,
     residency_status TEXT,
+    oked_code TEXT,
+    oked_name TEXT,
+    oked_banned INTEGER DEFAULT 0,
     updated_at TEXT NOT NULL
 );
 
@@ -725,6 +731,9 @@ def update_profile_by_user(
                 has_foreign_income = ?,
                 has_rental_income = ?,
                 residency_status = ?,
+                oked_code = ?,
+                oked_name = ?,
+                oked_banned = ?,
                 updated_at = ?
             WHERE user_id = ?
             """,
@@ -737,6 +746,9 @@ def update_profile_by_user(
                 payload["has_foreign_income"],
                 payload["has_rental_income"],
                 payload["residency_status"],
+                payload.get("oked_code"),
+                payload.get("oked_name"),
+                payload.get("oked_banned", 0),
                 timestamp,
                 user_id,
             ),

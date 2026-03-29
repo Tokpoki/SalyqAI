@@ -1,5 +1,6 @@
 """Profile routes bound to current user."""
 
+import logging
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -7,6 +8,9 @@ from pydantic import BaseModel
 
 from db import database as db_module
 from src.auth.dependencies import get_current_user
+from src.oked.checker import detect_oked
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/user", tags=["Profile"])
 
@@ -32,6 +36,19 @@ def _require_db_func(name: str):
     return fn
 
 
+def _enrich_with_oked(fields: dict) -> dict:
+    """If activity_type is being set, auto-detect OKED."""
+    activity = fields.get("activity_type")
+    if activity:
+        logger.info("Detecting OKED for activity: %s", activity)
+        result = detect_oked(activity)
+        fields["oked_code"] = result["oked"]
+        fields["oked_name"] = result["oked_name"]
+        fields["oked_banned"] = 1 if result["banned"] else 0
+        logger.info("OKED result: %s (banned=%s)", result["oked"], result["banned"])
+    return fields
+
+
 @router.get("/profile")
 def get_profile(current_user: dict = Depends(get_current_user)):
     get_or_create_profile_by_user = _require_db_func("get_or_create_profile_by_user")
@@ -41,5 +58,5 @@ def get_profile(current_user: dict = Depends(get_current_user)):
 @router.patch("/profile")
 def patch_profile(body: ProfilePatchRequest, current_user: dict = Depends(get_current_user)):
     update_profile_by_user = _require_db_func("update_profile_by_user")
-    fields = body.model_dump(exclude_none=True)
+    fields = _enrich_with_oked(body.model_dump(exclude_none=True))
     return update_profile_by_user(current_user["id"], fields)

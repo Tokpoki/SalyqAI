@@ -26,6 +26,9 @@ export interface Profile {
   has_foreign_income: boolean | null;
   has_rental_income: boolean | null;
   residency_status: string | null;
+  oked_code: string | null;
+  oked_name: string | null;
+  oked_banned: boolean | null;
   updated_at: string;
 }
 
