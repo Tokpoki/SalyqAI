@@ -327,6 +327,21 @@ npm run dev
 
 Приложение будет доступно на `http://localhost:3000`
 
+### Docker (рекомендуется)
+
+```bash
+# Скопируйте и заполните .env
+cp .env.example .env
+# Заполните OPENAI_API_KEY, JWT_SECRET
+
+# Запуск
+docker compose up --build
+```
+
+- Frontend: `http://localhost:3000`
+- Backend: `http://localhost:8000`
+- Health check: `http://localhost:8000/api/v1/health`
+
 ---
 
 ## 🎨 Дизайн
@@ -346,6 +361,7 @@ npm run dev
 | Участник | Роль |
 |----------|------|
 | **Орынтай** | Team Lead, Backend Architecture |
+| **Даурен** | Backend API & Auth |
 | **Димаш** | Frontend Development |
 | **Магжан** | Database & RAG Pipeline |
 
