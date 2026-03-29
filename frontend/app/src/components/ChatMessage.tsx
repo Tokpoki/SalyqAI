@@ -97,17 +97,20 @@ export default function ChatMessage({
           <CitationsInline citations={citations} />
         )}
 
-        {confidence != null && confidence > 0 && (
-          <div className="mt-2 flex items-center gap-2">
-            <div className="h-1.5 flex-1 rounded-full bg-border/50 overflow-hidden">
+        {confidence != null && (
+          <div className="mt-2 space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-muted-foreground/70">Уверенность ответа</span>
+              <span className="text-[11px] font-medium text-muted-foreground">
+                {Math.round(confidence * 100)}%
+              </span>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-border/50 overflow-hidden">
               <div
                 className="h-full rounded-full gradient-bg transition-all"
                 style={{ width: `${Math.round(confidence * 100)}%` }}
               />
             </div>
-            <span className="text-[11px] text-muted-foreground">
-              {Math.round(confidence * 100)}%
-            </span>
           </div>
         )}
 
