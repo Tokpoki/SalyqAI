@@ -55,7 +55,7 @@ def get_settings() -> Settings:
         jwt_refresh_expire_days=int(os.getenv("JWT_REFRESH_EXPIRE_DAYS", "7")),
         db_path=_resolve_path(db_path_raw, _BACKEND_DIR),
         chroma_path=_resolve_path(chroma_path_raw, _BACKEND_DIR),
-        chroma_collection=os.getenv("CHROMA_COLLECTION", "rk_tax_code_2026_articles_e5_large").strip(),
+        chroma_collection=os.getenv("CHROMA_COLLECTION", "rk_tax_code_2026_openai").strip(),
         knowledge_version=os.getenv("KNOWLEDGE_VERSION", "tax_code_2026_v1").strip(),
         cors_origins=[origin.strip() for origin in cors_raw.split(",") if origin.strip()],
     )

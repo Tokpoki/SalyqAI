@@ -25,5 +25,5 @@ EXPOSE 8000
 
 WORKDIR /app/api_orchestrator
 
-# Seed chroma on first run if /data/chroma is empty, then start server
-CMD sh -c 'if [ ! -f /data/chroma/chroma.sqlite3 ]; then cp -r /app/chroma_seed /data/chroma && echo "Seeded chroma"; fi && uvicorn src.main:app --host 0.0.0.0 --port 8000'
+# Seed chroma if missing or outdated (v2 = OpenAI embeddings), then start server
+CMD sh -c 'if [ ! -f /data/chroma/.version ] || [ "$(cat /data/chroma/.version)" != "v2-openai" ]; then rm -rf /data/chroma && cp -r /app/chroma_seed /data/chroma && echo "v2-openai" > /data/chroma/.version && echo "Seeded chroma v2-openai"; fi && uvicorn src.main:app --host 0.0.0.0 --port 8000'

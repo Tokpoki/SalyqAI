@@ -63,22 +63,30 @@ def _expand_query_terms(query: str) -> list[str]:
     return list(dict.fromkeys(terms))[:12]
 
 
+def _embed_query(text: str) -> list[float]:
+    """Embed a query using OpenAI text-embedding-3-small."""
+    from openai import OpenAI
+    settings = get_settings()
+    client = OpenAI(api_key=settings.openai_api_key)
+    response = client.embeddings.create(
+        model="text-embedding-3-small",
+        input=[text],
+    )
+    return response.data[0].embedding
+
+
 def _keyword_retrieve(query: str, top_k: int = 5) -> list[dict]:
-    """Keyword retrieval from Chroma, ranked by number of matching terms."""
+    """Hybrid retrieval: semantic search + direct article lookup."""
     try:
         import chromadb
         settings = get_settings()
         client = chromadb.PersistentClient(path=str(settings.chroma_path))
         collection = client.get_collection(settings.chroma_collection)
 
+        results_map: dict[str, dict] = {}
+
+        # 1) Direct lookup by article number (highest priority)
         article_numbers = _extract_article_numbers(query)
-        terms = _expand_query_terms(query)
-        if not terms and not article_numbers:
-            return []
-
-        scored: dict[str, dict] = {}
-
-        # Direct lookup by article number (highest priority)
         for art_num in article_numbers:
             try:
                 results = collection.get(
@@ -88,41 +96,44 @@ def _keyword_retrieve(query: str, top_k: int = 5) -> list[dict]:
                 for i, doc_id in enumerate(results["ids"]):
                     meta = results["metadatas"][i] if results["metadatas"] else {}
                     doc = results["documents"][i] if results["documents"] else ""
-                    scored[doc_id] = {
+                    results_map[doc_id] = {
                         "article_number": meta.get("article_number"),
                         "article_title": meta.get("article_title"),
                         "snippet": " ".join(doc.split())[:300],
-                        "score": 10,
+                        "score": 100,
                     }
             except Exception:
                 continue
 
-        # Keyword search (skip generic terms that match everything)
-        skip_terms = {"статья", "статье", "статьи", "статью", "статей"}
-        for term in terms:
-            if term in skip_terms:
-                continue
-            try:
-                results = collection.get(
-                    where_document={"$contains": term},
-                    include=["documents", "metadatas"],
-                    limit=20,
-                )
-                for i, doc_id in enumerate(results["ids"]):
-                    if doc_id not in scored:
-                        meta = results["metadatas"][i] if results["metadatas"] else {}
-                        doc = results["documents"][i] if results["documents"] else ""
-                        scored[doc_id] = {
-                            "article_number": meta.get("article_number"),
-                            "article_title": meta.get("article_title"),
-                            "snippet": " ".join(doc.split())[:300],
-                            "score": 0,
-                        }
-                    scored[doc_id]["score"] += 1
-            except Exception:
-                continue
+        # 2) Semantic search via OpenAI embeddings
+        try:
+            query_embedding = _embed_query(query)
+            sem_results = collection.query(
+                query_embeddings=[query_embedding],
+                n_results=top_k,
+                include=["documents", "metadatas", "distances"],
+            )
+            ids = sem_results.get("ids", [[]])[0]
+            docs = sem_results.get("documents", [[]])[0]
+            metas = sem_results.get("metadatas", [[]])[0]
+            distances = sem_results.get("distances", [[]])[0]
 
-        ranked = sorted(scored.values(), key=lambda x: x["score"], reverse=True)
+            for i, doc_id in enumerate(ids):
+                if doc_id in results_map:
+                    continue
+                meta = metas[i] if metas else {}
+                doc = docs[i] if docs else ""
+                dist = distances[i] if distances else 1.0
+                results_map[doc_id] = {
+                    "article_number": meta.get("article_number"),
+                    "article_title": meta.get("article_title"),
+                    "snippet": " ".join(doc.split())[:300],
+                    "score": max(0, 10 - dist * 5),
+                }
+        except Exception:
+            pass
+
+        ranked = sorted(results_map.values(), key=lambda x: x["score"], reverse=True)
         return ranked[:top_k]
     except Exception:
         return []
