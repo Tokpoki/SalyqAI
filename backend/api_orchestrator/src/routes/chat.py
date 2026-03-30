@@ -347,11 +347,12 @@ def send_message(
         user_msg_id = str(uuid.uuid4())
         insert_message(user_msg_id, session_id_str, "user", body.text, now)
 
-        history = [
+        all_messages = [
             {"role": m["role"], "content": m["content"]}
             for m in get_messages(session_id_str)
             if m.get("role") in {"user", "assistant", "system"}
         ]
+        history = all_messages[-15:]
 
         rag_articles = _keyword_retrieve(query=body.text, top_k=5)
 
