@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { DollarSign } from "lucide-react";
+import { useTranslation } from "@/i18n";
 
 interface MoneyInputProps {
   value: string;
@@ -9,10 +9,10 @@ interface MoneyInputProps {
 }
 
 const QUICK_BUTTONS = [
-  { label: "+100 тыс.", amount: 100_000 },
-  { label: "+500 тыс.", amount: 500_000 },
-  { label: "+1 млн.", amount: 1_000_000 },
-  { label: "+5 млн.", amount: 5_000_000 },
+  { key: "money.100k", amount: 100_000 },
+  { key: "money.500k", amount: 500_000 },
+  { key: "money.1m", amount: 1_000_000 },
+  { key: "money.5m", amount: 5_000_000 },
 ];
 
 function formatDisplay(raw: string): string {
@@ -26,6 +26,7 @@ function toRaw(formatted: string): string {
 }
 
 export default function MoneyInput({ value, onChange, className = "", placeholder = "0" }: MoneyInputProps) {
+  const { t } = useTranslation();
   const [display, setDisplay] = useState(() => formatDisplay(value));
 
   useEffect(() => {
@@ -48,7 +49,7 @@ export default function MoneyInput({ value, onChange, className = "", placeholde
   return (
     <div className="space-y-2">
       <div className="relative">
-        <DollarSign size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
+        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground/50">₸</span>
         <input
           type="text"
           inputMode="numeric"
@@ -57,9 +58,6 @@ export default function MoneyInput({ value, onChange, className = "", placeholde
           className={className}
           placeholder={placeholder}
         />
-        {display && (
-          <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground/50">₸</span>
-        )}
       </div>
       <div className="flex flex-wrap gap-1.5">
         {QUICK_BUTTONS.map((btn) => (
@@ -69,7 +67,7 @@ export default function MoneyInput({ value, onChange, className = "", placeholde
             onClick={() => handleQuickAdd(btn.amount)}
             className="rounded-lg border border-border/50 bg-card px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary hover:border-primary/30"
           >
-            {btn.label}
+            {t(btn.key)}
           </button>
         ))}
         {display && (
@@ -78,7 +76,7 @@ export default function MoneyInput({ value, onChange, className = "", placeholde
             onClick={() => { setDisplay(""); onChange(""); }}
             className="rounded-lg border border-border/50 bg-card px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
           >
-            Сбросить
+            {t("money.reset")}
           </button>
         )}
       </div>

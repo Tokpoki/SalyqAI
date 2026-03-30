@@ -4,8 +4,10 @@ import { motion } from "framer-motion";
 import { Scale, Mail, Lock, ArrowRight } from "lucide-react";
 import { login } from "@/api/auth";
 import { isAuthenticated } from "@/lib/auth";
+import { useTranslation } from "@/i18n";
 
 export default function LoginPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,9 +27,9 @@ export default function LoginPage() {
       navigate("/chat", { replace: true });
     } catch (err: unknown) {
       const apiErr = err as { status?: number };
-      if (apiErr.status === 401) setError("Неверный email или пароль");
-      else if (err instanceof TypeError) setError("Не удалось подключиться к серверу");
-      else setError("Ошибка сервера. Попробуйте позже.");
+      if (apiErr.status === 401) setError(t("login.wrongCredentials"));
+      else if (err instanceof TypeError) setError(t("login.networkError"));
+      else setError(t("login.serverError"));
     } finally {
       setLoading(false);
     }
@@ -57,16 +59,16 @@ export default function LoginPage() {
               </div>
               <span className="text-xl font-bold tracking-tight">Salyq AI</span>
             </Link>
-            <h1 className="mt-4 text-2xl font-bold">Добро пожаловать</h1>
+            <h1 className="mt-4 text-2xl font-bold">{t("login.welcome")}</h1>
             <p className="mt-1.5 text-sm text-muted-foreground">
-              Войдите для доступа к налоговому консультанту
+              {t("login.subtitle")}
             </p>
           </div>
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="mb-1.5 block text-sm font-medium">Email</label>
+              <label className="mb-1.5 block text-sm font-medium">{t("login.email")}</label>
               <div className="relative">
                 <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
                 <input
@@ -80,7 +82,7 @@ export default function LoginPage() {
               </div>
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium">Пароль</label>
+              <label className="mb-1.5 block text-sm font-medium">{t("login.password")}</label>
               <div className="relative">
                 <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
                 <input
@@ -109,16 +111,16 @@ export default function LoginPage() {
               disabled={loading}
               className="group flex w-full items-center justify-center gap-2 rounded-xl gradient-bg px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/15 transition-all hover:shadow-emerald-500/25 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:hover:scale-100"
             >
-              {loading ? "Вход..." : "Войти"}
+              {loading ? t("login.submitting") : t("login.submit")}
               {!loading && <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />}
             </button>
           </form>
 
           {/* Footer */}
           <p className="mt-6 text-center text-sm text-muted-foreground">
-            Нет аккаунта?{" "}
+            {t("login.noAccount")}{" "}
             <Link to="/register" className="font-semibold text-primary hover:underline">
-              Зарегистрироваться
+              {t("login.register")}
             </Link>
           </p>
         </div>

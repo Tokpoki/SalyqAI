@@ -1,9 +1,11 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { Plus, Settings, MessageSquare, Moon, Sun, Trash2, Scale } from "lucide-react";
+import { Plus, Settings, MessageSquare, Moon, Sun, Trash2, Scale, Search, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import type { SessionSummary } from "@/api/chat";
+import { useTranslation } from "@/i18n";
+import type { Lang } from "@/i18n";
 
 interface SidebarProps {
   sessions: SessionSummary[];
@@ -13,18 +15,20 @@ interface SidebarProps {
   userEmail?: string;
 }
 
-function formatDate(dateStr: string) {
+function formatDate(dateStr: string, t: (key: string) => string, lang: Lang) {
   const d = new Date(dateStr);
   const now = new Date();
   const diff = now.getTime() - d.getTime();
   const days = Math.floor(diff / 86400000);
-  if (days === 0) return "Сегодня";
-  if (days === 1) return "Вчера";
-  if (days < 7) return `${days} дн. назад`;
-  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+  if (days === 0) return t("sidebar.today");
+  if (days === 1) return t("sidebar.yesterday");
+  if (days < 7) return `${days} ${t("sidebar.daysAgo")}`;
+  const locale = lang === "kz" ? "kk-KZ" : lang === "en" ? "en-US" : "ru-RU";
+  return d.toLocaleDateString(locale, { day: "numeric", month: "short" });
 }
 
 function ThemeToggle() {
+  const { t } = useTranslation();
   const [dark, setDark] = useState(() =>
     document.documentElement.classList.contains("dark"),
   );
@@ -52,7 +56,7 @@ function ThemeToggle() {
       className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-muted-foreground transition-all hover:bg-accent hover:text-foreground"
     >
       {dark ? <Sun size={16} /> : <Moon size={16} />}
-      {dark ? "Светлая тема" : "Тёмная тема"}
+      {dark ? t("sidebar.lightTheme") : t("sidebar.darkTheme")}
     </button>
   );
 }
@@ -60,10 +64,18 @@ function ThemeToggle() {
 export default function Sidebar({ sessions, onNewChat, onDeleteChat, isCreating, userEmail }: SidebarProps) {
   const navigate = useNavigate();
   const { chatId } = useParams();
+  const [search, setSearch] = useState("");
+  const { lang, setLang, t } = useTranslation();
+
+  const filtered = search.trim()
+    ? sessions.filter((s) =>
+        (s.title || "").toLowerCase().includes(search.trim().toLowerCase()),
+      )
+    : sessions;
 
   const grouped: Record<string, SessionSummary[]> = {};
-  for (const s of sessions) {
-    const label = formatDate(s.created_at);
+  for (const s of filtered) {
+    const label = formatDate(s.created_at, t, lang);
     if (!grouped[label]) grouped[label] = [];
     grouped[label].push(s);
   }
@@ -88,8 +100,30 @@ export default function Sidebar({ sessions, onNewChat, onDeleteChat, isCreating,
           )}
         >
           <Plus size={16} />
-          Новый чат
+          {t("sidebar.newChat")}
         </button>
+      </div>
+
+      {/* Search */}
+      <div className="px-3 pb-2">
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t("sidebar.search")}
+            className="w-full rounded-xl border border-border/50 bg-background/50 pl-9 pr-8 py-2 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground transition-colors"
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Sessions list */}
@@ -121,7 +155,7 @@ export default function Sidebar({ sessions, onNewChat, onDeleteChat, isCreating,
                       chatId === s.id ? "text-primary" : "text-muted-foreground/50"
                     )} />
                     <span className="truncate text-[13px]">
-                      {s.title || "Новый чат"}
+                      {s.title || t("sidebar.defaultTitle")}
                     </span>
                   </button>
                   {onDeleteChat && (
@@ -149,8 +183,24 @@ export default function Sidebar({ sessions, onNewChat, onDeleteChat, isCreating,
           className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-muted-foreground transition-all hover:bg-accent hover:text-foreground"
         >
           <Settings size={16} />
-          Настройки
+          {t("sidebar.settings")}
         </button>
+        <div className="flex items-center gap-1 rounded-xl px-3 py-2">
+          {(["ru", "kz", "en"] as const).map((l) => (
+            <button
+              key={l}
+              onClick={() => setLang(l)}
+              className={cn(
+                "rounded-lg px-2.5 py-1 text-xs font-medium transition-all",
+                lang === l
+                  ? "gradient-bg text-white shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
+              )}
+            >
+              {l === "ru" ? "RU" : l === "kz" ? "KZ" : "EN"}
+            </button>
+          ))}
+        </div>
         <ThemeToggle />
         {userEmail && (
           <p className="truncate px-3 pt-1 text-[11px] text-muted-foreground/50">{userEmail}</p>

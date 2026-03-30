@@ -32,6 +32,7 @@ PROFILE_FIELDS = (
     "oked_code",
     "oked_name",
     "oked_banned",
+    "language",
 )
 
 _DDL = """
@@ -74,6 +75,7 @@ CREATE TABLE IF NOT EXISTS taxpayer_profiles (
     oked_code TEXT,
     oked_name TEXT,
     oked_banned INTEGER DEFAULT 0,
+    language TEXT DEFAULT 'ru',
     updated_at TEXT NOT NULL
 );
 
@@ -312,6 +314,7 @@ def _normalize_legacy_schema(conn: sqlite3.Connection) -> None:
         "updated_at",
         "updated_at TEXT NOT NULL DEFAULT (datetime('now'))",
     )
+    _ensure_column(conn, "taxpayer_profiles", "language", "language TEXT DEFAULT 'ru'")
     conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_user ON taxpayer_profiles(user_id)")
 
 
@@ -734,6 +737,7 @@ def update_profile_by_user(
                 oked_code = ?,
                 oked_name = ?,
                 oked_banned = ?,
+                language = ?,
                 updated_at = ?
             WHERE user_id = ?
             """,
@@ -749,6 +753,7 @@ def update_profile_by_user(
                 payload.get("oked_code"),
                 payload.get("oked_name"),
                 payload.get("oked_banned", 0),
+                payload.get("language", "ru"),
                 timestamp,
                 user_id,
             ),

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, LogOut, Loader2, Scale, Building2, Briefcase, Save, CheckCircle2, ShieldCheck, ShieldAlert } from "lucide-react";
+import { useTranslation } from "@/i18n";
 import MoneyInput from "@/components/MoneyInput";
 import { getProfile as _getProfile, updateProfile as _updateProfile, type Profile } from "@/api/profile";
 import { clearTokens } from "@/lib/auth";
@@ -12,6 +13,7 @@ const updateProfile = DEV_BYPASS ? (mockApi.updateProfile as typeof _updateProfi
 
 export default function SettingsPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -35,6 +37,7 @@ export default function SettingsPage() {
         setActivityType(p.activity_type || "");
         setHasRental(p.has_rental_income || false);
         setHasForeign(p.has_foreign_income || false);
+        if (p.language) localStorage.setItem("salyq_language", p.language);
       } catch {
         // silent
       } finally {
@@ -55,6 +58,7 @@ export default function SettingsPage() {
         activity_type: activityType || null,
         has_rental_income: hasRental,
         has_foreign_income: hasForeign,
+        language: localStorage.getItem("salyq_language") || "ru",
       });
       setProfile(updated);
       setSaved(true);
@@ -103,7 +107,7 @@ export default function SettingsPage() {
           >
             <ArrowLeft size={18} />
           </button>
-          <h1 className="text-sm font-semibold">Настройки</h1>
+          <h1 className="text-sm font-semibold">{t("settings.title")}</h1>
         </div>
       </header>
 
@@ -114,11 +118,11 @@ export default function SettingsPage() {
       >
         {/* Profile card */}
         <div className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
-          <h2 className="text-lg font-bold mb-6">Профиль налогоплательщика</h2>
+          <h2 className="text-lg font-bold mb-6">{t("settings.profileTitle")}</h2>
 
           <div className="space-y-5">
             <div>
-              <label className="mb-1.5 block text-sm font-medium">Тип налогоплательщика</label>
+              <label className="mb-1.5 block text-sm font-medium">{t("settings.taxpayerType")}</label>
               <div className="relative">
                 <Building2 size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
                 <select
@@ -126,16 +130,16 @@ export default function SettingsPage() {
                   onChange={(e) => setTaxpayerType(e.target.value)}
                   className={inputClass}
                 >
-                  <option value="">Не указано</option>
-                  <option value="individual">Физическое лицо</option>
-                  <option value="sole_proprietor">ИП</option>
-                  <option value="legal_entity">ТОО</option>
+                  <option value="">{t("settings.notSpecified")}</option>
+                  <option value="individual">{t("settings.individual")}</option>
+                  <option value="sole_proprietor">{t("settings.soleProprietor")}</option>
+                  <option value="legal_entity">{t("settings.legalEntity")}</option>
                 </select>
               </div>
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium">Налоговый режим</label>
+              <label className="mb-1.5 block text-sm font-medium">{t("settings.taxRegime")}</label>
               <div className="relative">
                 <Briefcase size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
                 <select
@@ -143,19 +147,17 @@ export default function SettingsPage() {
                   onChange={(e) => setTaxRegime(e.target.value)}
                   className={inputClass}
                 >
-                  <option value="">Не указано</option>
-                  <option value="patent">Патент</option>
-                  <option value="simplified">Упрощённая декларация</option>
-                  <option value="fixed_deduction">Фиксированный вычет</option>
-                  <option value="general">Общеустановленный режим (ОУР)</option>
-                  <option value="retail_tax">Розничный налог</option>
-                  <option value="special_mobile">Специальный мобильное приложение</option>
+                  <option value="">{t("settings.notSpecified")}</option>
+                  <option value="general">{t("settings.general")}</option>
+                  <option value="simplified">{t("settings.simplified")}</option>
+                  <option value="self_employed">{t("settings.selfEmployed")}</option>
+                  <option value="farm">{t("settings.farm")}</option>
                 </select>
               </div>
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium">Годовой доход (тенге)</label>
+              <label className="mb-1.5 block text-sm font-medium">{t("settings.annualIncome")}</label>
               <MoneyInput
                 value={annualIncome}
                 onChange={setAnnualIncome}
@@ -164,13 +166,13 @@ export default function SettingsPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium">Вид деятельности</label>
+              <label className="mb-1.5 block text-sm font-medium">{t("settings.activityType")}</label>
               <input
                 type="text"
                 value={activityType}
                 onChange={(e) => setActivityType(e.target.value)}
                 className={inputClassNoIcon}
-                placeholder="Например: разработка ПО"
+                placeholder={t("settings.activityPlaceholder")}
               />
               {profile?.oked_code && (
                 <div className={`mt-2 flex items-start gap-2 rounded-xl px-4 py-3 text-sm ${
@@ -184,8 +186,8 @@ export default function SettingsPage() {
                     {profile.oked_name && <span> — {profile.oked_name}</span>}
                     <p className="mt-0.5 text-xs opacity-75">
                       {profile.oked_banned
-                        ? "Запрещено для упрощённой декларации (Постановление №970)"
-                        : "Разрешено для упрощённой декларации"}
+                        ? t("settings.okedBanned")
+                        : t("settings.okedAllowed")}
                     </p>
                   </div>
                 </div>
@@ -200,7 +202,7 @@ export default function SettingsPage() {
                   onChange={(e) => setHasRental(e.target.checked)}
                   className="rounded border-border accent-primary"
                 />
-                Арендный доход
+                {t("settings.rentalIncome")}
               </label>
               <label className="flex items-center gap-2.5 rounded-xl border border-border/50 px-4 py-3 text-sm cursor-pointer transition-colors hover:bg-accent/50">
                 <input
@@ -209,7 +211,7 @@ export default function SettingsPage() {
                   onChange={(e) => setHasForeign(e.target.checked)}
                   className="rounded border-border accent-primary"
                 />
-                Доход из-за рубежа
+                {t("settings.foreignIncome")}
               </label>
             </div>
 
@@ -220,7 +222,7 @@ export default function SettingsPage() {
                 className="inline-flex items-center gap-2 rounded-xl gradient-bg px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/15 transition-all hover:shadow-emerald-500/25 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
               >
                 <Save size={16} />
-                {saving ? "Сохранение..." : "Сохранить"}
+                {saving ? t("settings.saving") : t("settings.save")}
               </button>
               {saved && (
                 <motion.span
@@ -229,7 +231,7 @@ export default function SettingsPage() {
                   className="inline-flex items-center gap-1.5 text-sm text-primary font-medium"
                 >
                   <CheckCircle2 size={16} />
-                  Сохранено
+                  {t("settings.saved")}
                 </motion.span>
               )}
             </div>
@@ -243,7 +245,7 @@ export default function SettingsPage() {
             className="flex items-center gap-2 rounded-xl border border-destructive/30 px-5 py-3 text-sm font-semibold text-destructive transition-all hover:bg-destructive/10 hover:scale-[1.01] active:scale-[0.99]"
           >
             <LogOut size={16} />
-            Выйти из аккаунта
+            {t("settings.logout")}
           </button>
         </div>
       </motion.div>

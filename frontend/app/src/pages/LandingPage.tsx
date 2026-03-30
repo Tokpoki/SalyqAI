@@ -14,60 +14,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { isAuthenticated } from "@/lib/auth";
-
-/* ────────── Data ────────── */
-
-const features = [
-  {
-    icon: Search,
-    title: "Поиск по НК РК",
-    desc: "Мгновенный поиск по всему Налоговому кодексу Республики Казахстан с помощью ИИ",
-    gradient: "from-emerald-500 to-teal-500",
-  },
-  {
-    icon: FileText,
-    title: "Налоговые обязательства",
-    desc: "Автоматически определяем ваши обязательства — сроки, суммы, коды",
-    gradient: "from-teal-500 to-cyan-500",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Ссылки на закон",
-    desc: "Каждый ответ подкреплён конкретными статьями кодекса — никаких галлюцинаций",
-    gradient: "from-cyan-500 to-sky-500",
-  },
-  {
-    icon: Zap,
-    title: "Мгновенные ответы",
-    desc: "Получите консультацию за секунды вместо часов поиска в законодательстве",
-    gradient: "from-sky-500 to-blue-500",
-  },
-];
-
-const steps = [
-  {
-    num: "01",
-    title: "Зарегистрируйтесь",
-    desc: "Создайте аккаунт и заполните налоговый профиль за 2 минуты",
-  },
-  {
-    num: "02",
-    title: "Задайте вопрос",
-    desc: "Спросите что угодно о налогах Казахстана — на простом языке",
-  },
-  {
-    num: "03",
-    title: "Получите ответ",
-    desc: "ИИ найдёт ответ в НК РК и покажет ссылки на конкретные статьи",
-  },
-];
-
-const stats = [
-  { value: "1 700+", label: "Статей НК РК" },
-  { value: "Персональный", label: "Подход к каждому" },
-  { value: "24/7", label: "Доступность" },
-  { value: "100%", label: "На основе закона" },
-];
+import { useTranslation } from "@/i18n";
 
 /* ────────── Helpers ────────── */
 
@@ -95,6 +42,7 @@ function FadeInWhenVisible({ children, delay = 0, className = "" }: {
 /* ────────── Component ────────── */
 
 export default function LandingPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const heroRef = useRef(null);
   const { scrollYProgress } = useScroll({
@@ -107,6 +55,28 @@ export default function LandingPage() {
   useEffect(() => {
     if (isAuthenticated()) navigate("/chat", { replace: true });
   }, [navigate]);
+
+  /* ────────── Data ────────── */
+
+  const features = [
+    { icon: Search, gradient: "from-emerald-500 to-teal-500", title: t("landing.feat1title"), desc: t("landing.feat1desc") },
+    { icon: FileText, gradient: "from-teal-500 to-cyan-500", title: t("landing.feat2title"), desc: t("landing.feat2desc") },
+    { icon: ShieldCheck, gradient: "from-cyan-500 to-sky-500", title: t("landing.feat3title"), desc: t("landing.feat3desc") },
+    { icon: Zap, gradient: "from-sky-500 to-blue-500", title: t("landing.feat4title"), desc: t("landing.feat4desc") },
+  ];
+
+  const steps = [
+    { num: "01", title: t("landing.step1title"), desc: t("landing.step1desc") },
+    { num: "02", title: t("landing.step2title"), desc: t("landing.step2desc") },
+    { num: "03", title: t("landing.step3title"), desc: t("landing.step3desc") },
+  ];
+
+  const stats = [
+    { value: t("landing.stat1value"), label: t("landing.stat1label") },
+    { value: t("landing.stat2value"), label: t("landing.stat2label") },
+    { value: "24/7", label: t("landing.stat3label") },
+    { value: "100%", label: t("landing.stat4label") },
+  ];
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
@@ -125,13 +95,13 @@ export default function LandingPage() {
               to="/login"
               className="rounded-xl px-5 py-2.5 text-sm font-medium text-foreground/80 transition-colors hover:text-foreground"
             >
-              Войти
+              {t("landing.login")}
             </Link>
             <Link
               to="/register"
               className="rounded-xl gradient-bg px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/20 transition-all hover:shadow-emerald-500/30 hover:scale-[1.02] active:scale-[0.98]"
             >
-              Начать бесплатно
+              {t("landing.startFree")}
             </Link>
           </div>
         </div>
@@ -158,7 +128,7 @@ export default function LandingPage() {
             className="mb-8 inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-600 dark:text-emerald-400"
           >
             <Sparkles size={14} />
-            <span>ИИ-помощник по налогам Казахстана</span>
+            <span>{t("landing.badge")}</span>
           </motion.div>
 
           {/* Title */}
@@ -168,9 +138,9 @@ export default function LandingPage() {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="text-5xl font-extrabold leading-tight tracking-tight sm:text-6xl lg:text-7xl"
           >
-            Налоги — это просто
+            {t("landing.title1")}
             <br />
-            <span className="gradient-text">с Salyq AI</span>
+            <span className="gradient-text">{t("landing.title2")}</span>
           </motion.h1>
 
           {/* Subtitle */}
@@ -180,8 +150,7 @@ export default function LandingPage() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl"
           >
-            Задайте вопрос на простом языке — получите точный ответ со ссылками
-            на Налоговый кодекс РК. Никаких юристов, никаких очередей.
+            {t("landing.subtitle")}
           </motion.p>
 
           {/* CTA */}
@@ -195,7 +164,7 @@ export default function LandingPage() {
               to="/register"
               className="group flex items-center gap-2 rounded-2xl gradient-bg px-8 py-4 text-base font-semibold text-white shadow-xl shadow-emerald-500/25 transition-all hover:shadow-emerald-500/40 hover:scale-[1.02] active:scale-[0.98]"
             >
-              Попробовать бесплатно
+              {t("landing.cta")}
               <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
             </Link>
             <Link
@@ -203,7 +172,7 @@ export default function LandingPage() {
               className="flex items-center gap-2 rounded-2xl border border-border bg-background/50 px-8 py-4 text-base font-semibold transition-all hover:bg-secondary hover:scale-[1.02] active:scale-[0.98]"
             >
               <MessageSquare size={18} />
-              У меня есть аккаунт
+              {t("landing.hasAccount")}
             </Link>
           </motion.div>
 
@@ -244,11 +213,11 @@ export default function LandingPage() {
         <div className="mx-auto max-w-7xl px-6">
           <FadeInWhenVisible className="text-center">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
-              Всё что нужно для{" "}
-              <span className="gradient-text">налогового учёта</span>
+              {t("landing.featuresTitle")}{" "}
+              <span className="gradient-text">{t("landing.featuresHighlight")}</span>
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-              Salyq AI анализирует Налоговый кодекс и даёт ответы с точными ссылками
+              {t("landing.featuresSubtitle")}
             </p>
           </FadeInWhenVisible>
 
@@ -277,11 +246,11 @@ export default function LandingPage() {
         <div className="relative mx-auto max-w-5xl px-6">
           <FadeInWhenVisible className="text-center">
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
-              Как это{" "}
-              <span className="gradient-text">работает</span>
+              {t("landing.howTitle")}{" "}
+              <span className="gradient-text">{t("landing.howHighlight")}</span>
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
-              Три простых шага до ответа на ваш налоговый вопрос
+              {t("landing.howSubtitle")}
             </p>
           </FadeInWhenVisible>
 
@@ -311,7 +280,7 @@ export default function LandingPage() {
                 <div className="h-3 w-3 rounded-full bg-red-400/80" />
                 <div className="h-3 w-3 rounded-full bg-yellow-400/80" />
                 <div className="h-3 w-3 rounded-full bg-green-400/80" />
-                <span className="ml-3 text-sm text-muted-foreground">Salyq AI — Чат</span>
+                <span className="ml-3 text-sm text-muted-foreground">{t("landing.chatTitle")}</span>
               </div>
 
               {/* Chat messages */}
@@ -319,7 +288,7 @@ export default function LandingPage() {
                 {/* User */}
                 <div className="flex justify-end">
                   <div className="max-w-[80%] rounded-2xl rounded-tr-md gradient-bg px-5 py-3 text-sm text-white">
-                    Какой налог платит ИП на упрощёнке с доходом 5 млн тенге?
+                    {t("landing.chatExample")}
                   </div>
                 </div>
 
@@ -327,13 +296,12 @@ export default function LandingPage() {
                 <div className="flex justify-start">
                   <div className="max-w-[80%] space-y-3 rounded-2xl rounded-tl-md border border-border bg-secondary/50 px-5 py-4">
                     <p className="text-sm leading-relaxed">
-                      Для ИП на упрощённой декларации с доходом <strong>5 000 000 ₸</strong> за
-                      полугодие налог составит <strong>150 000 ₸</strong> (3% от дохода).
+                      {t("landing.chatAnswer")}
                     </p>
                     <div className="flex items-start gap-2 rounded-xl bg-emerald-500/10 p-3">
                       <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-500" />
                       <p className="text-xs text-emerald-700 dark:text-emerald-400">
-                        <strong>Ст. 687 НК РК</strong> — ставка 3% от дохода для СНР на основе упрощённой декларации
+                        {t("landing.chatSource")}
                       </p>
                     </div>
                   </div>
@@ -344,7 +312,7 @@ export default function LandingPage() {
               <div className="border-t border-border px-6 py-4">
                 <div className="flex items-center gap-3 rounded-xl border border-border bg-background px-4 py-3">
                   <span className="flex-1 text-sm text-muted-foreground">
-                    Введите вопрос о налогах...
+                    {t("chat.inputPlaceholder")}
                   </span>
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg gradient-bg">
                     <ArrowRight size={14} className="text-white" />
@@ -365,12 +333,11 @@ export default function LandingPage() {
         <div className="relative mx-auto max-w-3xl px-6 text-center">
           <FadeInWhenVisible>
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
-              Готовы упростить{" "}
-              <span className="gradient-text">налоги?</span>
+              {t("landing.ctaTitle")}{" "}
+              <span className="gradient-text">{t("landing.ctaHighlight")}</span>
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
-              Присоединяйтесь к Salyq AI и получите ответы на налоговые вопросы
-              за считанные секунды.
+              {t("landing.ctaSubtitle")}
             </p>
 
             <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
@@ -378,7 +345,7 @@ export default function LandingPage() {
                 to="/register"
                 className="group flex items-center gap-2 rounded-2xl gradient-bg px-8 py-4 text-base font-semibold text-white shadow-xl shadow-emerald-500/25 transition-all hover:shadow-emerald-500/40 hover:scale-[1.02] active:scale-[0.98]"
               >
-                Создать аккаунт
+                {t("landing.ctaButton")}
                 <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
               </Link>
             </div>
@@ -396,7 +363,7 @@ export default function LandingPage() {
             <span className="text-sm font-semibold">Salyq AI</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} Salyq AI. Все права защищены.
+            © {new Date().getFullYear()} Salyq AI. {t("landing.footer")}
           </p>
         </div>
       </footer>

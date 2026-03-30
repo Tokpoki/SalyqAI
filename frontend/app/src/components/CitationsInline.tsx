@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/i18n";
 import type { Citation } from "@/api/chat";
 
 interface Props {
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export default function CitationsInline({ citations }: Props) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
   return (
@@ -17,7 +19,7 @@ export default function CitationsInline({ citations }: Props) {
         className="flex items-center gap-1.5 text-xs font-medium opacity-70 hover:opacity-100 transition-opacity"
       >
         <BookOpen size={14} />
-        {citations.length} стат{citations.length === 1 ? "ья" : citations.length < 5 ? "ьи" : "ей"} НК РК
+        {citations.length} {citations.length === 1 ? t("msg.article") : citations.length < 5 ? t("msg.articles2") : t("msg.articles5")}
         {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
       </button>
 

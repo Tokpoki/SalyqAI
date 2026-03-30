@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { User, Sparkles, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/i18n";
 import type { Obligation, Citation } from "@/api/chat";
 import ObligationsInline from "./ObligationsInline";
 import CitationsInline from "./CitationsInline";
@@ -35,6 +36,7 @@ export default function ChatMessage({
   confidence,
   disclaimer,
 }: ChatMessageProps) {
+  const { t } = useTranslation();
   const isUser = role === "user";
 
   return (
@@ -69,7 +71,7 @@ export default function ChatMessage({
 
         {actionPlan && actionPlan.length > 0 && (
           <div className="mt-3 space-y-1.5 border-t border-border/20 pt-3">
-            <p className="text-xs font-semibold opacity-70">План действий:</p>
+            <p className="text-xs font-semibold opacity-70">{t("msg.actionPlan")}</p>
             <ol className="list-decimal pl-4 text-xs space-y-1">
               {actionPlan.map((item, i) => (
                 <li key={i}>{item}</li>
@@ -80,7 +82,7 @@ export default function ChatMessage({
 
         {clarifyingQuestions && clarifyingQuestions.length > 0 && (
           <div className="mt-3 space-y-1.5 border-t border-border/20 pt-3">
-            <p className="text-xs font-semibold opacity-70">Уточняющие вопросы:</p>
+            <p className="text-xs font-semibold opacity-70">{t("msg.questions")}</p>
             <ul className="list-disc pl-4 text-xs space-y-1">
               {clarifyingQuestions.map((q, i) => (
                 <li key={i}>{q}</li>
@@ -100,7 +102,7 @@ export default function ChatMessage({
         {confidence != null && (
           <div className="mt-2 space-y-1">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] text-muted-foreground/70">Уверенность ответа</span>
+              <span className="text-[11px] text-muted-foreground/70">{t("msg.confidence")}</span>
               <span className="text-[11px] font-medium text-muted-foreground">
                 {Math.round(confidence * 100)}%
               </span>
@@ -126,7 +128,7 @@ export default function ChatMessage({
             className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-4 py-2.5 text-xs font-semibold text-primary transition-all hover:bg-primary/20 hover:border-primary/50"
           >
             <ExternalLink size={14} />
-            Проверить задолженность на портале КГД
+            {t("msg.checkDebt")}
           </a>
         )}
       </div>

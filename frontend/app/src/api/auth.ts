@@ -29,6 +29,7 @@ export interface Profile {
   oked_code: string | null;
   oked_name: string | null;
   oked_banned: boolean | null;
+  language: string | null;
   updated_at: string;
 }
 

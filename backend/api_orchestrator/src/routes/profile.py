@@ -24,6 +24,7 @@ class ProfilePatchRequest(BaseModel):
     has_foreign_income: bool | None = None
     has_rental_income: bool | None = None
     residency_status: Literal["resident", "non_resident"] | None = None
+    language: Literal["ru", "en", "kz"] | None = None
 
 
 def _require_db_func(name: str):

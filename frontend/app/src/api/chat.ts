@@ -35,6 +35,8 @@ export interface Obligation {
   due_date_rule: string;
   amount_kzt: number | null;
   basis: string;
+  kbk: string | null;
+  knp: string | null;
 }
 
 export interface Citation {

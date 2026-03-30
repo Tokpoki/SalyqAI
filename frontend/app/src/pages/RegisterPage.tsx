@@ -5,10 +5,12 @@ import { Scale, ArrowLeft, ArrowRight, User, Mail, Lock, Building2, Briefcase } 
 import MoneyInput from "@/components/MoneyInput";
 import { register } from "@/api/auth";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/i18n";
 
 type Step = 1 | 2;
 
 export default function RegisterPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>(1);
   const [error, setError] = useState("");
@@ -51,8 +53,8 @@ export default function RegisterPage() {
       navigate("/chat", { replace: true });
     } catch (err: unknown) {
       const apiErr = err as { status?: number };
-      if (apiErr.status === 409) setError("Этот email уже зарегистрирован");
-      else setError("Ошибка регистрации. Попробуйте позже.");
+      if (apiErr.status === 409) setError(t("register.emailExists"));
+      else setError(t("register.error"));
     } finally {
       setLoading(false);
     }
@@ -84,9 +86,9 @@ export default function RegisterPage() {
               </div>
               <span className="text-xl font-bold tracking-tight">Salyq AI</span>
             </Link>
-            <h1 className="mt-3 text-2xl font-bold">Регистрация</h1>
+            <h1 className="mt-3 text-2xl font-bold">{t("register.title")}</h1>
             <p className="mt-1.5 text-sm text-muted-foreground">
-              {step === 1 ? "Шаг 1 — Данные аккаунта" : "Шаг 2 — Налоговый профиль (необязательно)"}
+              {step === 1 ? t("register.step1") : t("register.step2")}
             </p>
           </div>
 
@@ -107,7 +109,7 @@ export default function RegisterPage() {
                 className="space-y-4"
               >
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium">ФИО</label>
+                  <label className="mb-1.5 block text-sm font-medium">{t("register.name")}</label>
                   <div className="relative">
                     <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
                     <input
@@ -116,12 +118,12 @@ export default function RegisterPage() {
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       className={inputClass}
-                      placeholder="Иванов Иван Иванович"
+                      placeholder={t("register.namePlaceholder")}
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium">Email</label>
+                  <label className="mb-1.5 block text-sm font-medium">{t("login.email")}</label>
                   <div className="relative">
                     <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
                     <input
@@ -135,7 +137,7 @@ export default function RegisterPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium">Пароль</label>
+                  <label className="mb-1.5 block text-sm font-medium">{t("login.password")}</label>
                   <div className="relative">
                     <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
                     <input
@@ -152,7 +154,7 @@ export default function RegisterPage() {
                   type="submit"
                   className="group flex w-full items-center justify-center gap-2 rounded-xl gradient-bg px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/15 transition-all hover:shadow-emerald-500/25 hover:scale-[1.01] active:scale-[0.99]"
                 >
-                  Далее
+                  {t("register.next")}
                   <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
                 </button>
               </motion.form>
@@ -165,7 +167,7 @@ export default function RegisterPage() {
                 className="space-y-4"
               >
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium">Тип налогоплательщика</label>
+                  <label className="mb-1.5 block text-sm font-medium">{t("settings.taxpayerType")}</label>
                   <div className="relative">
                     <Building2 size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
                     <select
@@ -173,15 +175,15 @@ export default function RegisterPage() {
                       onChange={(e) => setTaxpayerType(e.target.value)}
                       className={inputClass}
                     >
-                      <option value="">Не указано</option>
-                      <option value="individual">Физическое лицо</option>
-                      <option value="sole_proprietor">ИП</option>
-                      <option value="legal_entity">ТОО</option>
+                      <option value="">{t("settings.notSpecified")}</option>
+                      <option value="individual">{t("settings.individual")}</option>
+                      <option value="sole_proprietor">{t("settings.soleProprietor")}</option>
+                      <option value="legal_entity">{t("settings.legalEntity")}</option>
                     </select>
                   </div>
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium">Налоговый режим</label>
+                  <label className="mb-1.5 block text-sm font-medium">{t("settings.taxRegime")}</label>
                   <div className="relative">
                     <Briefcase size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
                     <select
@@ -189,18 +191,16 @@ export default function RegisterPage() {
                       onChange={(e) => setTaxRegime(e.target.value)}
                       className={inputClass}
                     >
-                      <option value="">Не указано</option>
-                      <option value="patent">Патент</option>
-                      <option value="simplified">Упрощённая декларация</option>
-                      <option value="fixed_deduction">Фиксированный вычет</option>
-                      <option value="general">Общеустановленный режим (ОУР)</option>
-                      <option value="retail_tax">Розничный налог</option>
-                      <option value="special_mobile">Специальный мобильное приложение</option>
+                      <option value="">{t("settings.notSpecified")}</option>
+                      <option value="general">{t("settings.general")}</option>
+                      <option value="simplified">{t("settings.simplified")}</option>
+                      <option value="self_employed">{t("settings.selfEmployed")}</option>
+                      <option value="farm">{t("settings.farm")}</option>
                     </select>
                   </div>
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium">Годовой доход (тенге)</label>
+                  <label className="mb-1.5 block text-sm font-medium">{t("settings.annualIncome")}</label>
                   <MoneyInput
                     value={annualIncome}
                     onChange={setAnnualIncome}
@@ -208,13 +208,13 @@ export default function RegisterPage() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium">Вид деятельности</label>
+                  <label className="mb-1.5 block text-sm font-medium">{t("settings.activityType")}</label>
                   <input
                     type="text"
                     value={activityType}
                     onChange={(e) => setActivityType(e.target.value)}
                     className={inputClassNoIcon}
-                    placeholder="Например: разработка ПО"
+                    placeholder={t("settings.activityPlaceholder")}
                   />
                 </div>
                 <div className="flex gap-4">
@@ -225,7 +225,7 @@ export default function RegisterPage() {
                       onChange={(e) => setHasRental(e.target.checked)}
                       className="rounded border-border accent-primary"
                     />
-                    Аренда
+                    {t("register.rental")}
                   </label>
                   <label className="flex items-center gap-2.5 rounded-xl border border-border/50 px-4 py-3 text-sm cursor-pointer transition-colors hover:bg-accent/50">
                     <input
@@ -234,7 +234,7 @@ export default function RegisterPage() {
                       onChange={(e) => setHasForeign(e.target.checked)}
                       className="rounded border-border accent-primary"
                     />
-                    Зарубежный доход
+                    {t("register.foreign")}
                   </label>
                 </div>
 
@@ -253,21 +253,21 @@ export default function RegisterPage() {
                     onClick={() => setStep(1)}
                     className="flex items-center gap-1.5 rounded-xl border border-border/50 px-4 py-3 text-sm font-medium transition-all hover:bg-accent"
                   >
-                    <ArrowLeft size={16} /> Назад
+                    <ArrowLeft size={16} /> {t("register.back")}
                   </button>
                   <button
                     onClick={() => submit(false)}
                     disabled={loading}
                     className="flex-1 rounded-xl border border-border/50 px-4 py-3 text-sm font-medium transition-all hover:bg-accent disabled:opacity-50"
                   >
-                    Пропустить
+                    {t("register.skip")}
                   </button>
                   <button
                     onClick={() => submit(true)}
                     disabled={loading}
                     className="flex-1 rounded-xl gradient-bg px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/15 transition-all hover:shadow-emerald-500/25 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
                   >
-                    {loading ? "..." : "Готово"}
+                    {loading ? "..." : t("register.done")}
                   </button>
                 </div>
               </motion.div>
@@ -275,9 +275,9 @@ export default function RegisterPage() {
           </AnimatePresence>
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
-            Уже есть аккаунт?{" "}
+            {t("register.hasAccount")}{" "}
             <Link to="/login" className="font-semibold text-primary hover:underline">
-              Войти
+              {t("register.login")}
             </Link>
           </p>
         </div>

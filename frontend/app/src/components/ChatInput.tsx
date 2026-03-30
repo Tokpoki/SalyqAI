@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { SendHorizonal } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/i18n";
 
 interface ChatInputProps {
   onSend: (text: string) => void;
@@ -8,6 +9,7 @@ interface ChatInputProps {
 }
 
 export default function ChatInput({ onSend, disabled }: ChatInputProps) {
+  const { t } = useTranslation();
   const [text, setText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -43,7 +45,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="Введите вопрос о налогах..."
+        placeholder={t("chat.inputPlaceholder")}
         disabled={disabled}
         rows={1}
         className={cn(

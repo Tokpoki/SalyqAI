@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp, ClipboardList } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/i18n";
 import type { Obligation } from "@/api/chat";
 
 interface Props {
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export default function ObligationsInline({ obligations }: Props) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
   return (
@@ -17,7 +19,7 @@ export default function ObligationsInline({ obligations }: Props) {
         className="flex items-center gap-1.5 text-xs font-medium opacity-70 hover:opacity-100 transition-opacity"
       >
         <ClipboardList size={14} />
-        {obligations.length} обязательств{obligations.length === 1 ? "о" : obligations.length < 5 ? "а" : ""}
+        {obligations.length} {obligations.length === 1 ? t("msg.obligation") : obligations.length < 5 ? t("msg.obligations2") : t("msg.obligations5")}
         {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
       </button>
 
@@ -35,6 +37,8 @@ export default function ObligationsInline({ obligations }: Props) {
             >
               <p className="font-medium">{o.title}</p>
               {o.code && <p className="text-muted-foreground">Код: {o.code}</p>}
+              {o.kbk && <p className="text-muted-foreground font-mono">КБК: {o.kbk}</p>}
+              {o.knp && <p className="text-muted-foreground font-mono">КНП: {o.knp}</p>}
               {o.due_date_rule && <p className="text-muted-foreground">Срок: {o.due_date_rule}</p>}
               {o.amount_kzt != null && (
                 <p className="text-muted-foreground">

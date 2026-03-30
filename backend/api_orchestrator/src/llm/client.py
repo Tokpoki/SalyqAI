@@ -10,7 +10,7 @@ from typing import Any
 from openai import OpenAI
 
 from src.config import get_settings
-from src.llm.prompt import SYSTEM_PROMPT, build_user_prompt
+from src.llm.prompt import get_system_prompt, build_user_prompt
 
 
 def _fallback_answer() -> dict[str, Any]:
@@ -121,13 +121,14 @@ def _generate_openai(history, rag_articles, rules_result):
         return _fallback_answer()
 
     model_name = settings.openai_model
+    language = rules_result.get("profile", {}).get("language", "ru") or "ru"
     prompt = build_user_prompt(history=history, rag_articles=rag_articles, rules_result=rules_result)
 
     client = OpenAI(api_key=api_key)
     response = client.chat.completions.create(
         model=model_name,
         messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": get_system_prompt(language)},
             {"role": "user", "content": prompt},
         ],
         response_format={"type": "json_object"},

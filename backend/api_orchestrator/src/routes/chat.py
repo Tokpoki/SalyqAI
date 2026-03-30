@@ -30,6 +30,21 @@ _SYNONYM_MAP = {
 }
 
 
+def _extract_article_numbers(query: str) -> list[str]:
+    """Extract article numbers from queries like 'статья 8', 'ст. 492', 'ст.492-494'."""
+    import re
+    pattern = r'(?:стать[яюией]+|ст\.?)\s*(\d+(?:\s*[-–]\s*\d+)?)'
+    matches = re.findall(pattern, query.lower())
+    numbers = []
+    for m in matches:
+        if '-' in m or '–' in m:
+            parts = re.split(r'\s*[-–]\s*', m)
+            numbers.extend(parts)
+        else:
+            numbers.append(m.strip())
+    return numbers
+
+
 def _expand_query_terms(query: str) -> list[str]:
     """Expand user query into formal legal terms for better retrieval."""
     q_lower = query.lower().replace("ё", "е")
@@ -42,10 +57,10 @@ def _expand_query_terms(query: str) -> list[str]:
 
     words = q_lower.split()
     for w in words:
-        if len(w) > 4:
+        if len(w) > 3 or w.isdigit():
             terms.append(w.replace("ё", "е"))
 
-    return list(dict.fromkeys(terms))[:8]
+    return list(dict.fromkeys(terms))[:12]
 
 
 def _keyword_retrieve(query: str, top_k: int = 5) -> list[dict]:
@@ -56,13 +71,37 @@ def _keyword_retrieve(query: str, top_k: int = 5) -> list[dict]:
         client = chromadb.PersistentClient(path=str(settings.chroma_path))
         collection = client.get_collection(settings.chroma_collection)
 
+        article_numbers = _extract_article_numbers(query)
         terms = _expand_query_terms(query)
-        if not terms:
+        if not terms and not article_numbers:
             return []
 
         scored: dict[str, dict] = {}
 
+        # Direct lookup by article number (highest priority)
+        for art_num in article_numbers:
+            try:
+                results = collection.get(
+                    where={"article_number": art_num},
+                    include=["documents", "metadatas"],
+                )
+                for i, doc_id in enumerate(results["ids"]):
+                    meta = results["metadatas"][i] if results["metadatas"] else {}
+                    doc = results["documents"][i] if results["documents"] else ""
+                    scored[doc_id] = {
+                        "article_number": meta.get("article_number"),
+                        "article_title": meta.get("article_title"),
+                        "snippet": " ".join(doc.split())[:300],
+                        "score": 10,
+                    }
+            except Exception:
+                continue
+
+        # Keyword search (skip generic terms that match everything)
+        skip_terms = {"статья", "статье", "статьи", "статью", "статей"}
         for term in terms:
+            if term in skip_terms:
+                continue
             try:
                 results = collection.get(
                     where_document={"$contains": term},
@@ -141,6 +180,8 @@ class ChatMessageResponse(BaseModel):
         due_date_rule: str | None = None
         amount_kzt: float | None = None
         basis: str | None = None
+        kbk: str | None = None
+        knp: str | None = None
 
     class Citation(BaseModel):
         article_number: str | None = None

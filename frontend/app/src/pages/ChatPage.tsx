@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, Scale, Loader2, Sparkles, Plus, MessageSquare } from "lucide-react";
+import { useTranslation } from "@/i18n";
 import Sidebar from "@/components/Sidebar";
 import ChatMessage from "@/components/ChatMessage";
 import ChatInput from "@/components/ChatInput";
@@ -42,6 +43,7 @@ interface UIMessage {
 export default function ChatPage() {
   const { chatId } = useParams();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [messages, setMessages] = useState<UIMessage[]>([]);
@@ -174,7 +176,7 @@ export default function ChatPage() {
         {
           id: `err-${Date.now()}`,
           role: "assistant",
-          content: "Произошла ошибка. Попробуйте ещё раз.",
+          content: t("chat.error"),
         },
       ]);
     } finally {
@@ -284,10 +286,11 @@ export default function ChatPage() {
 }
 
 function EmptyState({ onNewChat }: { onNewChat: () => void }) {
+  const { t } = useTranslation();
   const suggestions = [
-    "Какие налоги платит ИП на упрощёнке?",
-    "Сроки сдачи декларации по ИПН?",
-    "Как рассчитать НДС для ТОО?",
+    t("chat.suggestion1"),
+    t("chat.suggestion2"),
+    t("chat.suggestion3"),
   ];
 
   return (
@@ -306,10 +309,10 @@ function EmptyState({ onNewChat }: { onNewChat: () => void }) {
           <Sparkles size={28} className="text-white" />
         </div>
         <h2 className="text-xl font-bold">
-          Добро пожаловать в <span className="gradient-text">Salyq AI</span>
+          {t("chat.welcome")} <span className="gradient-text">Salyq AI</span>
         </h2>
         <p className="mt-2 text-sm text-muted-foreground max-w-sm">
-          Выберите чат из списка или создайте новый, чтобы задать вопрос о налогах
+          {t("chat.selectOrCreate")}
         </p>
 
         <button
@@ -317,7 +320,7 @@ function EmptyState({ onNewChat }: { onNewChat: () => void }) {
           className="mt-6 inline-flex items-center gap-2 rounded-2xl gradient-bg px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/20 transition-all hover:shadow-emerald-500/30 hover:scale-[1.02] active:scale-[0.98]"
         >
           <Plus size={16} />
-          Новый чат
+          {t("sidebar.newChat")}
         </button>
 
         <div className="mt-8 flex flex-wrap justify-center gap-2">
@@ -340,6 +343,7 @@ function EmptyState({ onNewChat }: { onNewChat: () => void }) {
 }
 
 function EmptyChat() {
+  const { t } = useTranslation();
   return (
     <div className="flex h-full flex-col items-center justify-center px-4 text-center">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -354,7 +358,7 @@ function EmptyChat() {
           <MessageSquare size={20} className="text-primary" />
         </div>
         <p className="text-sm text-muted-foreground">
-          Задайте вопрос о налогах в Казахстане
+          {t("chat.askQuestion")}
         </p>
       </motion.div>
     </div>

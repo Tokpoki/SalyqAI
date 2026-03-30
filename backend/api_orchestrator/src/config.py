@@ -12,7 +12,7 @@ _SRC_DIR = Path(__file__).resolve().parent
 _BACKEND_DIR = _SRC_DIR.parent
 
 # Ensure .env values are available even when app is imported outside uvicorn startup.
-load_dotenv(_BACKEND_DIR / ".env", override=True)
+load_dotenv(_BACKEND_DIR / ".env", override=False)
 
 
 def _resolve_path(raw_path: str, base_dir: Path) -> Path:
