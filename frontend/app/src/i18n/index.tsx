@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 import translations, { type Lang } from "./translations";
+import { updateProfile } from "@/api/profile";
 
 interface I18nContextType {
   lang: Lang;
@@ -23,6 +24,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   function setLang(l: Lang) {
     setLangState(l);
     localStorage.setItem("salyq_language", l);
+    updateProfile({ language: l }).catch(() => {});
   }
 
   useEffect(() => {
