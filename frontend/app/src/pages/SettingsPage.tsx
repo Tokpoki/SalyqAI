@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, LogOut, Loader2, Scale, Building2, Briefcase, Save, CheckCircle2, ShieldCheck, ShieldAlert } from "lucide-react";
+import { ArrowLeft, LogOut, Loader2, Scale, Building2, Briefcase, Save, CheckCircle2, ShieldCheck, ShieldAlert, Globe } from "lucide-react";
 import { useTranslation } from "@/i18n";
 import MoneyInput from "@/components/MoneyInput";
 import { getProfile as _getProfile, updateProfile as _updateProfile, type Profile } from "@/api/profile";
@@ -13,7 +13,7 @@ const updateProfile = DEV_BYPASS ? (mockApi.updateProfile as typeof _updateProfi
 
 export default function SettingsPage() {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { lang, setLang, t } = useTranslation();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -121,6 +121,22 @@ export default function SettingsPage() {
           <h2 className="text-lg font-bold mb-6">{t("settings.profileTitle")}</h2>
 
           <div className="space-y-5">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">{t("settings.language")}</label>
+              <div className="relative">
+                <Globe size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
+                <select
+                  value={lang}
+                  onChange={(e) => setLang(e.target.value as "ru" | "kz" | "en")}
+                  className={inputClass}
+                >
+                  <option value="ru">Русский</option>
+                  <option value="kz">Қазақша</option>
+                  <option value="en">English</option>
+                </select>
+              </div>
+            </div>
+
             <div>
               <label className="mb-1.5 block text-sm font-medium">{t("settings.taxpayerType")}</label>
               <div className="relative">

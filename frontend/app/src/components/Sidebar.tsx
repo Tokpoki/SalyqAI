@@ -185,22 +185,6 @@ export default function Sidebar({ sessions, onNewChat, onDeleteChat, isCreating,
           <Settings size={16} />
           {t("sidebar.settings")}
         </button>
-        <div className="flex items-center gap-1 rounded-xl px-3 py-2">
-          {(["ru", "kz", "en"] as const).map((l) => (
-            <button
-              key={l}
-              onClick={() => setLang(l)}
-              className={cn(
-                "rounded-lg px-2.5 py-1 text-xs font-medium transition-all",
-                lang === l
-                  ? "gradient-bg text-white shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
-              )}
-            >
-              {l === "ru" ? "RU" : l === "kz" ? "KZ" : "EN"}
-            </button>
-          ))}
-        </div>
         <ThemeToggle />
         {userEmail && (
           <p className="truncate px-3 pt-1 text-[11px] text-muted-foreground/50">{userEmail}</p>

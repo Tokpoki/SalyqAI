@@ -42,7 +42,7 @@ function FadeInWhenVisible({ children, delay = 0, className = "" }: {
 /* ────────── Component ────────── */
 
 export default function LandingPage() {
-  const { t } = useTranslation();
+  const { lang, setLang, t } = useTranslation();
   const navigate = useNavigate();
   const heroRef = useRef(null);
   const { scrollYProgress } = useScroll({
@@ -91,6 +91,21 @@ export default function LandingPage() {
           </Link>
 
           <div className="flex items-center gap-3">
+            <div className="flex items-center gap-0.5 rounded-lg border border-border/50 bg-background/50 p-0.5">
+              {(["ru", "kz", "en"] as const).map((l) => (
+                <button
+                  key={l}
+                  onClick={() => setLang(l)}
+                  className={`rounded-md px-2 py-1 text-xs font-medium transition-all ${
+                    lang === l
+                      ? "gradient-bg text-white shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {l.toUpperCase()}
+                </button>
+              ))}
+            </div>
             <Link
               to="/login"
               className="rounded-xl px-5 py-2.5 text-sm font-medium text-foreground/80 transition-colors hover:text-foreground"
