@@ -13,6 +13,9 @@ COPY . .
 # Create data directory
 RUN mkdir -p /data
 
+# Bundle chroma seed data into image
+COPY chroma_seed /app/chroma_seed
+
 ENV DB_PATH=/data/salyq.db
 ENV CHROMA_PATH=/data/chroma
 ENV HOST=0.0.0.0
@@ -22,4 +25,5 @@ EXPOSE 8000
 
 WORKDIR /app/api_orchestrator
 
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Seed chroma on first run if /data/chroma is empty, then start server
+CMD sh -c 'if [ ! -f /data/chroma/chroma.sqlite3 ]; then cp -r /app/chroma_seed /data/chroma && echo "Seeded chroma"; fi && uvicorn src.main:app --host 0.0.0.0 --port 8000'
