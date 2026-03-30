@@ -12,6 +12,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "sidebar.daysAgo": { ru: "дн. назад", en: "days ago", kz: "күн бұрын" },
   "sidebar.defaultTitle": { ru: "Новый чат", en: "New chat", kz: "Жаңа чат" },
   "sidebar.language": { ru: "Язык", en: "Language", kz: "Тіл" },
+  "sidebar.calculator": { ru: "Расчёт налогов ИП", en: "IP Tax Calculator", kz: "ЖК салық есебі" },
 
   // ─── Chat ───
   "chat.welcome": { ru: "Добро пожаловать в", en: "Welcome to", kz: "Қош келдіңіз" },
@@ -158,6 +159,40 @@ const translations: Record<string, Record<Lang, string>> = {
     en: "Art. 687-688 Tax Code — Special tax regime based on simplified declaration",
     kz: "СК 687-688 баптары — Жеңілдетілген декларация негізіндегі арнайы салық режимі",
   },
+
+  // ─── Calculator ───
+  "calc.title": { ru: "Расчёт налогов ИП", en: "IP Tax Calculator", kz: "ЖК салық есептегіші" },
+  "calc.subtitle": { ru: "Ежемесячные взносы и налоги по Налоговому кодексу РК", en: "Monthly contributions and taxes per RK Tax Code", kz: "ҚР Салық кодексі бойынша ай сайынғы жарналар мен салықтар" },
+  "calc.declaredIncome": { ru: "Заявленный доход (в месяц)", en: "Declared income (monthly)", kz: "Мәлімделген табыс (айлық)" },
+  "calc.taxRegime": { ru: "Налоговый режим", en: "Tax regime", kz: "Салық режимі" },
+  "calc.simplified": { ru: "Упрощённая декларация (3%)", en: "Simplified declaration (3%)", kz: "Жеңілдетілген декларация (3%)" },
+  "calc.general": { ru: "Общеустановленный режим", en: "General regime", kz: "Жалпыбелгіленген режим" },
+  "calc.semiannualIncome": { ru: "Доход за полугодие", en: "Semi-annual income", kz: "Жарты жылдық табыс" },
+  "calc.employees": { ru: "Работники", en: "Employees", kz: "Қызметкерлер" },
+  "calc.addEmployee": { ru: "Добавить работника", en: "Add employee", kz: "Қызметкер қосу" },
+  "calc.employeeName": { ru: "Имя (необязательно)", en: "Name (optional)", kz: "Аты (міндетті емес)" },
+  "calc.employeeSalary": { ru: "Зарплата", en: "Salary", kz: "Жалақы" },
+  "calc.calculate": { ru: "Рассчитать", en: "Calculate", kz: "Есептеу" },
+  "calc.calculating": { ru: "Расчёт...", en: "Calculating...", kz: "Есептеу..." },
+  "calc.selfTitle": { ru: "Взносы ИП за себя (ежемесячно)", en: "IP owner contributions (monthly)", kz: "ЖК өзі үшін жарналар (ай сайын)" },
+  "calc.semiTitle": { ru: "Налог по упрощёнке (за полугодие)", en: "Simplified tax (semi-annual)", kz: "Жеңілдетілген салық (жарты жыл)" },
+  "calc.semiMonthly": { ru: "≈ в месяц", en: "≈ monthly", kz: "≈ ай сайын" },
+  "calc.empTitle": { ru: "Расчёт за работника", en: "Employee calculation", kz: "Қызметкер есебі" },
+  "calc.deductions": { ru: "Удержания из зарплаты", en: "Salary deductions", kz: "Жалақыдан ұсталымдар" },
+  "calc.employerCosts": { ru: "Расходы работодателя", en: "Employer costs", kz: "Жұмыс берушінің шығындары" },
+  "calc.netSalary": { ru: "На руки", en: "Net salary", kz: "Қолға" },
+  "calc.contribution": { ru: "Взнос", en: "Contribution", kz: "Жарна" },
+  "calc.rate": { ru: "Ставка", en: "Rate", kz: "Мөлшерлеме" },
+  "calc.base": { ru: "База", en: "Base", kz: "Базасы" },
+  "calc.amount": { ru: "Сумма", en: "Amount", kz: "Сома" },
+  "calc.total": { ru: "Итого", en: "Total", kz: "Барлығы" },
+  "calc.grandTotal": { ru: "Общий итог в месяц", en: "Grand total monthly", kz: "Айлық жалпы сома" },
+  "calc.ipn": { ru: "ИПН", en: "IIT", kz: "ЖТС" },
+  "calc.socialTax": { ru: "Соц. налог", en: "Social tax", kz: "Әлеуметтік салық" },
+  "calc.mzpNote": { ru: "МЗП", en: "Min. wage", kz: "ЕТМ" },
+  "calc.mrpNote": { ru: "МРП", en: "MCI", kz: "АЕК" },
+  "calc.year": { ru: "Год расчёта", en: "Calculation year", kz: "Есептеу жылы" },
+  "calc.error": { ru: "Ошибка расчёта. Проверьте данные.", en: "Calculation error. Check your input.", kz: "Есептеу қатесі. Деректерді тексеріңіз." },
 };
 
 export default translations;

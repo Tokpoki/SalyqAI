@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { Plus, Settings, MessageSquare, Moon, Sun, Trash2, Scale, Search, X } from "lucide-react";
+import { Plus, Settings, MessageSquare, Moon, Sun, Trash2, Scale, Search, X, Calculator } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -178,6 +178,13 @@ export default function Sidebar({ sessions, onNewChat, onDeleteChat, isCreating,
 
       {/* Bottom */}
       <div className="border-t border-border/50 p-3 space-y-1">
+        <button
+          onClick={() => navigate("/calculator/ip")}
+          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-muted-foreground transition-all hover:bg-accent hover:text-foreground"
+        >
+          <Calculator size={16} />
+          {t("sidebar.calculator")}
+        </button>
         <button
           onClick={() => navigate("/settings")}
           className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-muted-foreground transition-all hover:bg-accent hover:text-foreground"

@@ -23,6 +23,7 @@ from routes.feedback import router as feedback_router
 from routes.internal import router as internal_router
 from routes.knowledge import router as knowledge_router
 from routes.profile import router as profile_router
+from routes.calculator import router as calculator_router
 
 logging.basicConfig(level=logging.INFO)
 
@@ -45,6 +46,7 @@ app.include_router(profile_router)
 app.include_router(feedback_router)
 app.include_router(knowledge_router)
 app.include_router(internal_router)
+app.include_router(calculator_router)
 
 
 @app.get("/api/v1/health")
