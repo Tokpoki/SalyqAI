@@ -10,6 +10,7 @@ frontend/app/dist/
 mcp.json
 .mcp.json
 chroma/
+chroma_openai/
 chroma_seed/
 backend/chroma_seed/
 .playwright-mcp/

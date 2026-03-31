@@ -1,4 +1,10 @@
-"""Reindex tax code articles in ChromaDB using OpenAI text-embedding-3-small."""
+"""Reindex tax code + KoAP articles in ChromaDB using OpenAI text-embedding-3-small.
+
+Reads all JSON sources and indexes them into a single collection.
+Each source uses its own ID prefix to avoid collisions:
+  - tax code:  article-{number}
+  - КоАП:      koap-{number}
+"""
 
 import json
 import os
@@ -12,7 +18,13 @@ from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent / "backend" / "api_orchestrator" / ".env", override=False)
 
 REPO_ROOT = Path(__file__).parent
-ARTICLES_PATH = REPO_ROOT / "rk_tax_code_2026_articles.json"
+
+# ── Sources: (json_path, id_prefix, source_tag) ──
+SOURCES = [
+    (REPO_ROOT / "rk_tax_code_2026_articles.json", "article", "tax_code"),
+    (REPO_ROOT / "rk_koap_articles.json",          "koap",    "koap"),
+]
+
 CHROMA_PATH = REPO_ROOT / "chroma"
 CHROMA_SEED_PATH = REPO_ROOT / "backend" / "chroma_seed"
 COLLECTION_NAME = "rk_tax_code_2026_openai"
@@ -41,44 +53,63 @@ def embed_batch(client: OpenAI, texts: list[str]) -> list[list[float]]:
     return [item.embedding for item in response.data]
 
 
+def load_articles(json_path: Path) -> list[dict]:
+    """Load articles from a JSON file (supports both list and {articles:[...]} format)."""
+    raw = json.loads(json_path.read_text(encoding="utf-8"))
+    return raw if isinstance(raw, list) else raw.get("articles", raw.get("data", []))
+
+
 def main():
     api_key = os.getenv("OPENAI_API_KEY", "").strip()
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY not set")
 
-    print(f"Loading articles from {ARTICLES_PATH}...")
-    raw = json.loads(ARTICLES_PATH.read_text(encoding="utf-8"))
-    articles = raw if isinstance(raw, list) else raw.get("articles", raw.get("data", []))
-    print(f"Found {len(articles)} articles")
-
     openai_client = OpenAI(api_key=api_key)
 
-    documents = [build_document(a) for a in articles]
-    ids = [f"article-{a['article_number']}" for a in articles]
-    metadatas = [
-        {
-            "article_number": a["article_number"],
-            "article_title": a["article_title"],
-            "section_number": a.get("section_number") or "",
-            "section_title": a.get("section_title") or "",
-            "chapter_number": a.get("chapter_number") or "",
-            "chapter_title": a.get("chapter_title") or "",
-        }
-        for a in articles
-    ]
-    raw_documents = [
-        f"Статья {a['article_number']}. {a['article_title']}\n{a.get('text', '')}"
-        for a in articles
-    ]
+    # ── Collect articles from all sources ──
+    all_documents = []
+    all_ids = []
+    all_metadatas = []
+    all_raw_documents = []
 
-    print(f"Embedding {len(documents)} documents with {EMBEDDING_MODEL}...")
+    for json_path, id_prefix, source_tag in SOURCES:
+        if not json_path.exists():
+            print(f"Skipping {json_path.name} (not found)")
+            continue
+
+        print(f"Loading {json_path.name}...")
+        articles = load_articles(json_path)
+        print(f"  Found {len(articles)} articles (source={source_tag})")
+
+        for a in articles:
+            all_documents.append(build_document(a))
+            all_ids.append(f"{id_prefix}-{a['article_number']}")
+            all_metadatas.append({
+                "article_number": a["article_number"],
+                "article_title": a["article_title"],
+                "section_number": a.get("section_number") or "",
+                "section_title": a.get("section_title") or "",
+                "chapter_number": a.get("chapter_number") or "",
+                "chapter_title": a.get("chapter_title") or "",
+                "source": source_tag,
+            })
+            all_raw_documents.append(
+                f"Статья {a['article_number']}. {a['article_title']}\n{a.get('text', '')}"
+            )
+
+    if not all_documents:
+        raise RuntimeError("No articles found in any source JSON.")
+
+    print(f"\nTotal: {len(all_documents)} documents from {sum(1 for p, _, _ in SOURCES if p.exists())} source(s)")
+    print(f"Embedding with {EMBEDDING_MODEL}...")
+
     all_embeddings = []
-    for start in range(0, len(documents), BATCH_SIZE):
-        end = min(start + BATCH_SIZE, len(documents))
-        batch = documents[start:end]
+    for start in range(0, len(all_documents), BATCH_SIZE):
+        end = min(start + BATCH_SIZE, len(all_documents))
+        batch = all_documents[start:end]
         embeddings = embed_batch(openai_client, batch)
         all_embeddings.extend(embeddings)
-        print(f"  Embedded {end}/{len(documents)}")
+        print(f"  Embedded {end}/{len(all_documents)}")
 
     # Create new chroma directory (keep old as backup)
     new_chroma = REPO_ROOT / "chroma_openai"
@@ -94,19 +125,19 @@ def main():
         name=COLLECTION_NAME,
         metadata={
             "embedding_model": EMBEDDING_MODEL,
-            "source": "rk_tax_code_2026_articles.json",
+            "sources": ", ".join(p.name for p, _, _ in SOURCES if p.exists()),
         },
     )
 
-    for start in range(0, len(articles), BATCH_SIZE):
-        end = min(start + BATCH_SIZE, len(articles))
+    for start in range(0, len(all_documents), BATCH_SIZE):
+        end = min(start + BATCH_SIZE, len(all_documents))
         collection.upsert(
-            ids=ids[start:end],
+            ids=all_ids[start:end],
             embeddings=all_embeddings[start:end],
-            metadatas=metadatas[start:end],
-            documents=raw_documents[start:end],
+            metadatas=all_metadatas[start:end],
+            documents=all_raw_documents[start:end],
         )
-        print(f"  Uploaded {end}/{len(articles)}")
+        print(f"  Uploaded {end}/{len(all_documents)}")
 
     # Copy to chroma_seed and chroma
     if CHROMA_SEED_PATH.exists():
