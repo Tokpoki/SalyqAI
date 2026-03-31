@@ -17,6 +17,7 @@ import {
   type Citation,
 } from "@/api/chat";
 import { getMe as _getMe } from "@/api/auth";
+import { checkAdmin } from "@/api/admin";
 import { DEV_BYPASS, mockApi } from "@/lib/dev";
 
 const api = {
@@ -48,6 +49,7 @@ export default function ChatPage() {
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [userEmail, setUserEmail] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -67,6 +69,7 @@ export default function ChatPage() {
         const [me, sessionsData] = await Promise.all([api.getMe(), api.listSessions()]);
         setUserEmail(me.email);
         setSessions(sessionsData.sessions);
+        checkAdmin().then(() => setIsAdmin(true)).catch(() => {});
       } catch {
         // Auth failed
       } finally {
@@ -207,6 +210,7 @@ export default function ChatPage() {
           onDeleteChat={handleDeleteChat}
           isCreating={isCreating}
           userEmail={userEmail}
+          isAdmin={isAdmin}
         />
       </div>
 

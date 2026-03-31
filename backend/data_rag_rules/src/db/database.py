@@ -1183,3 +1183,164 @@ def insert_error_log(
         return _row_to_dict(row) or {}
     finally:
         conn.close()
+
+
+# ─── Admin / monitoring queries ───────────────────────────────────────
+
+
+def admin_get_stats() -> dict[str, Any]:
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            """
+            SELECT
+                (SELECT COUNT(*) FROM users) AS total_users,
+                (SELECT COUNT(*) FROM chat_sessions) AS total_sessions,
+                (SELECT COUNT(*) FROM chat_messages) AS total_messages,
+                (SELECT COUNT(*) FROM chat_messages WHERE role = 'user') AS total_user_messages,
+                (SELECT COUNT(DISTINCT cs.user_id) FROM chat_sessions cs
+                 JOIN chat_messages cm ON cm.session_id = cs.id
+                 WHERE cm.created_at >= ?) AS active_today_users,
+                (SELECT COUNT(*) FROM users WHERE created_at >= ?) AS registered_today
+            """,
+            (today, today),
+        ).fetchone()
+        return dict(row) if row else {}
+    finally:
+        conn.close()
+
+
+def admin_list_users(limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT
+                u.id, u.email, u.name, u.created_at,
+                COUNT(DISTINCT cs.id) AS session_count,
+                COUNT(cm.id) AS message_count,
+                SUM(CASE WHEN cm.role = 'user' THEN 1 ELSE 0 END) AS user_message_count,
+                MAX(cm.created_at) AS last_active
+            FROM users u
+            LEFT JOIN chat_sessions cs ON cs.user_id = u.id
+            LEFT JOIN chat_messages cm ON cm.session_id = cs.id
+            GROUP BY u.id
+            ORDER BY u.created_at DESC
+            LIMIT ? OFFSET ?
+            """,
+            (limit, offset),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def admin_list_conversations(
+    limit: int = 50, offset: int = 0,
+) -> list[dict[str, Any]]:
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT
+                cs.id, cs.user_id, cs.title, cs.status,
+                cs.created_at, cs.updated_at,
+                u.name AS user_name, u.email AS user_email,
+                COUNT(cm.id) AS message_count,
+                (SELECT content FROM chat_messages
+                 WHERE session_id = cs.id AND role = 'user'
+                 ORDER BY created_at ASC LIMIT 1) AS first_question,
+                (SELECT content FROM chat_messages
+                 WHERE session_id = cs.id AND role = 'assistant'
+                 ORDER BY created_at ASC LIMIT 1) AS first_answer
+            FROM chat_sessions cs
+            LEFT JOIN users u ON u.id = cs.user_id
+            LEFT JOIN chat_messages cm ON cm.session_id = cs.id
+            GROUP BY cs.id
+            ORDER BY cs.updated_at DESC
+            LIMIT ? OFFSET ?
+            """,
+            (limit, offset),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def admin_get_conversation(session_id: str) -> dict[str, Any] | None:
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            """
+            SELECT cs.*, u.name AS user_name, u.email AS user_email
+            FROM chat_sessions cs
+            LEFT JOIN users u ON u.id = cs.user_id
+            WHERE cs.id = ?
+            """,
+            (session_id,),
+        ).fetchone()
+        if row is None:
+            return None
+
+        session = dict(row)
+        msg_rows = conn.execute(
+            "SELECT * FROM chat_messages WHERE session_id = ? ORDER BY created_at, rowid",
+            (session_id,),
+        ).fetchall()
+        session["messages"] = [_row_to_dict(r) or {} for r in msg_rows]
+        return session
+    finally:
+        conn.close()
+
+
+def admin_get_activity(limit: int = 50) -> list[dict[str, Any]]:
+    conn = get_connection()
+    try:
+        registrations = conn.execute(
+            """
+            SELECT 'registration' AS event_type, u.id AS user_id,
+                   u.email, u.name, NULL AS session_id,
+                   NULL AS content, NULL AS role, u.created_at
+            FROM users u
+            ORDER BY u.created_at DESC LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+
+        messages = conn.execute(
+            """
+            SELECT 'message' AS event_type, cs.user_id,
+                   u.email, u.name, cm.session_id,
+                   cm.content, cm.role, cm.created_at
+            FROM chat_messages cm
+            JOIN chat_sessions cs ON cs.id = cm.session_id
+            LEFT JOIN users u ON u.id = cs.user_id
+            WHERE cm.role = 'user'
+            ORDER BY cm.created_at DESC LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+
+        combined = [dict(r) for r in registrations] + [dict(r) for r in messages]
+        combined.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        return combined[:limit]
+    finally:
+        conn.close()
+
+
+def admin_get_error_logs(limit: int = 50) -> list[dict[str, Any]]:
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT el.*, u.email AS user_email, u.name AS user_name
+            FROM error_logs el
+            LEFT JOIN users u ON u.id = el.user_id
+            ORDER BY el.created_at DESC LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()

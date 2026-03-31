@@ -13,6 +13,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "sidebar.defaultTitle": { ru: "Новый чат", en: "New chat", kz: "Жаңа чат" },
   "sidebar.language": { ru: "Язык", en: "Language", kz: "Тіл" },
   "sidebar.calculator": { ru: "Расчёт налогов ИП", en: "IP Tax Calculator", kz: "ЖК салық есебі" },
+  "sidebar.admin": { ru: "Мониторинг", en: "Monitoring", kz: "Мониторинг" },
 
   // ─── Chat ───
   "chat.welcome": { ru: "Добро пожаловать в", en: "Welcome to", kz: "Қош келдіңіз" },
@@ -159,6 +160,28 @@ const translations: Record<string, Record<Lang, string>> = {
     en: "Art. 687-688 Tax Code — Special tax regime based on simplified declaration",
     kz: "СК 687-688 баптары — Жеңілдетілген декларация негізіндегі арнайы салық режимі",
   },
+
+  // ─── Admin ───
+  "admin.title": { ru: "Мониторинг", en: "Monitoring", kz: "Мониторинг" },
+  "admin.accessDenied": { ru: "Доступ запрещён", en: "Access denied", kz: "Рұқсат жоқ" },
+  "admin.backToChat": { ru: "Вернуться в чат", en: "Back to chat", kz: "Чатқа оралу" },
+  "admin.noData": { ru: "Нет данных", en: "No data", kz: "Деректер жоқ" },
+  "admin.stats.users": { ru: "Пользователи", en: "Users", kz: "Пайдаланушылар" },
+  "admin.stats.messages": { ru: "Сообщения", en: "Messages", kz: "Хабарламалар" },
+  "admin.stats.sessions": { ru: "Сессии", en: "Sessions", kz: "Сессиялар" },
+  "admin.stats.activeToday": { ru: "Активны сегодня", en: "Active today", kz: "Бүгін белсенді" },
+  "admin.stats.registeredToday": { ru: "Регистраций сегодня", en: "Registered today", kz: "Бүгін тіркелген" },
+  "admin.tab.users": { ru: "Пользователи", en: "Users", kz: "Пайдаланушылар" },
+  "admin.tab.conversations": { ru: "Диалоги", en: "Conversations", kz: "Диалогтар" },
+  "admin.tab.activity": { ru: "Активность", en: "Activity", kz: "Белсенділік" },
+  "admin.table.name": { ru: "Имя", en: "Name", kz: "Аты" },
+  "admin.table.email": { ru: "Email", en: "Email", kz: "Email" },
+  "admin.table.sessions": { ru: "Сессий", en: "Sessions", kz: "Сессия" },
+  "admin.table.messages": { ru: "Сообщений", en: "Messages", kz: "Хабарлама" },
+  "admin.table.registered": { ru: "Регистрация", en: "Registered", kz: "Тіркелген" },
+  "admin.table.lastActive": { ru: "Последняя активность", en: "Last active", kz: "Соңғы белсенділік" },
+  "admin.event.registered": { ru: "зарегистрировался", en: "registered", kz: "тіркелді" },
+  "admin.event.asked": { ru: "спросил", en: "asked", kz: "сұрады" },
 
   // ─── Calculator ───
   "calc.title": { ru: "Расчёт налогов ИП", en: "IP Tax Calculator", kz: "ЖК салық есептегіші" },

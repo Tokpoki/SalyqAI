@@ -37,12 +37,15 @@ class Settings:
     chroma_collection: str
     knowledge_version: str
     cors_origins: list[str]
+    admin_emails: set[str]
 
 
 def get_settings() -> Settings:
     db_path_raw = os.getenv("DB_PATH", "../salyq_dev.db")
     chroma_path_raw = os.getenv("CHROMA_PATH", "../../chroma")
     cors_raw = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173")
+
+    admin_raw = os.getenv("ADMIN_EMAILS", "")
 
     return Settings(
         gemini_api_key=os.getenv("GEMINI_API_KEY", "").strip(),
@@ -58,4 +61,5 @@ def get_settings() -> Settings:
         chroma_collection=os.getenv("CHROMA_COLLECTION", "rk_tax_code_2026_openai").strip(),
         knowledge_version=os.getenv("KNOWLEDGE_VERSION", "tax_code_2026_v1").strip(),
         cors_origins=[origin.strip() for origin in cors_raw.split(",") if origin.strip()],
+        admin_emails={e.strip().lower() for e in admin_raw.split(",") if e.strip()},
     )

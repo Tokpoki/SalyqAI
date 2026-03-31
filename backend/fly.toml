@@ -10,6 +10,7 @@ primary_region = 'ams'
   DB_PATH = "/data/salyq.db"
   CHROMA_PATH = "/data/chroma"
   CORS_ORIGINS = "https://salyq-ai.vercel.app,http://localhost:3000"
+  ADMIN_EMAILS = "admin@mail.com"
 
 [http_service]
   internal_port = 8000

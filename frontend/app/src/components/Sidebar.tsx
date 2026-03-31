@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { Plus, Settings, MessageSquare, Moon, Sun, Trash2, Scale, Search, X, Calculator } from "lucide-react";
+import { Plus, Settings, MessageSquare, Moon, Sun, Trash2, Scale, Search, X, Calculator, ShieldCheck } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,7 @@ interface SidebarProps {
   onDeleteChat?: (sessionId: string) => void;
   isCreating: boolean;
   userEmail?: string;
+  isAdmin?: boolean;
 }
 
 function formatDate(dateStr: string, t: (key: string) => string, lang: Lang) {
@@ -61,7 +62,7 @@ function ThemeToggle() {
   );
 }
 
-export default function Sidebar({ sessions, onNewChat, onDeleteChat, isCreating, userEmail }: SidebarProps) {
+export default function Sidebar({ sessions, onNewChat, onDeleteChat, isCreating, userEmail, isAdmin }: SidebarProps) {
   const navigate = useNavigate();
   const { chatId } = useParams();
   const [search, setSearch] = useState("");
@@ -185,6 +186,15 @@ export default function Sidebar({ sessions, onNewChat, onDeleteChat, isCreating,
           <Calculator size={16} />
           {t("sidebar.calculator")}
         </button>
+        {isAdmin && (
+          <button
+            onClick={() => navigate("/admin")}
+            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-muted-foreground transition-all hover:bg-accent hover:text-foreground"
+          >
+            <ShieldCheck size={16} />
+            {t("sidebar.admin")}
+          </button>
+        )}
         <button
           onClick={() => navigate("/settings")}
           className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-muted-foreground transition-all hover:bg-accent hover:text-foreground"

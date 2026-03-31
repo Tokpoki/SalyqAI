@@ -24,8 +24,15 @@ from routes.internal import router as internal_router
 from routes.knowledge import router as knowledge_router
 from routes.profile import router as profile_router
 from routes.calculator import router as calculator_router
+from routes.admin import router as admin_router
 
-logging.basicConfig(level=logging.INFO)
+# ─── Structured logging ──────────────────────────────────────────────
+
+_handler = logging.StreamHandler(sys.stdout)
+_handler.setFormatter(
+    logging.Formatter("%(asctime)s %(levelname)-8s %(name)s | %(message)s")
+)
+logging.basicConfig(level=logging.INFO, handlers=[_handler])
 
 app = FastAPI(title="Salyq AI API", version="0.3.0")
 settings = get_settings()
@@ -33,6 +40,11 @@ settings = get_settings()
 # Keep db module path resolution aligned with api_orchestrator settings.
 os.environ["DB_PATH"] = str(settings.db_path)
 
+# ─── Middleware (order matters: first added = outermost) ─────────────
+
+from src.middleware.request_logger import RequestLoggerMiddleware  # noqa: E402
+
+app.add_middleware(RequestLoggerMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -47,6 +59,7 @@ app.include_router(feedback_router)
 app.include_router(knowledge_router)
 app.include_router(internal_router)
 app.include_router(calculator_router)
+app.include_router(admin_router)
 
 
 @app.get("/api/v1/health")
@@ -60,4 +73,5 @@ def on_startup():
     init_db()
     if not settings.chroma_path.exists():
         print(f"WARNING: CHROMA_PATH does not exist: {settings.chroma_path}")
-    print("DB initialized at startup")
+    admin_count = len(settings.admin_emails)
+    print(f"DB initialized at startup | admin_emails configured: {admin_count}")
