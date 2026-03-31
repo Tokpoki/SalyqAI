@@ -391,6 +391,24 @@ def _seed_test_user() -> None:
     )
 
 
+ADMIN_USER_ID = "00000000-0000-0000-0000-000000000002"
+ADMIN_USER_EMAIL = "admin@mail.com"
+ADMIN_USER_NAME = "Admin"
+
+
+def _seed_admin_user() -> None:
+    if get_user_by_email(ADMIN_USER_EMAIL):
+        return
+
+    password_hash = bcrypt.hashpw(b"123", bcrypt.gensalt()).decode()
+    create_user(
+        ADMIN_USER_ID,
+        ADMIN_USER_EMAIL,
+        password_hash,
+        ADMIN_USER_NAME,
+    )
+
+
 def init_db() -> None:
     migrations_path = get_migrations_path()
     migrations_path.mkdir(parents=True, exist_ok=True)
@@ -413,6 +431,7 @@ def init_db() -> None:
         conn.close()
 
     _seed_test_user()
+    _seed_admin_user()
 
 
 def create_user(
