@@ -33,13 +33,13 @@ export default function CitationsInline({ citations }: Props) {
           {citations.map((c, i) => (
             <div
               key={i}
-              className="rounded-lg bg-amber-50 border border-amber-200/50 p-2.5 text-xs space-y-0.5"
+              className="rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200/50 dark:border-amber-700/30 p-2.5 text-xs space-y-0.5"
             >
-              <p className="font-medium">
+              <p className="font-medium text-amber-900 dark:text-amber-100">
                 ст. {c.article_number} — {c.article_title}
               </p>
               {c.snippet && (
-                <p className="text-muted-foreground italic">«{c.snippet}»</p>
+                <p className="text-amber-700 dark:text-amber-300/80 italic">«{c.snippet}»</p>
               )}
             </div>
           ))}
