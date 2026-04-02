@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { isAuthenticated } from "@/lib/auth";
 import { useTranslation } from "@/i18n";
+import ThemeToggle from "@/components/ThemeToggle";
 
 /* ────────── Helpers ────────── */
 
@@ -106,6 +107,7 @@ export default function LandingPage() {
                 </button>
               ))}
             </div>
+            <ThemeToggle variant="icon" />
             <Link
               to="/login"
               className="rounded-xl px-5 py-2.5 text-sm font-medium text-foreground/80 transition-colors hover:text-foreground"
