@@ -1,0 +1,12 @@
+.git
+.venv
+.claude
+.playwright-mcp
+.run
+chroma
+chroma_openai
+migrations
+docs
+*.db
+__pycache__
+node_modules

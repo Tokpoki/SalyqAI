@@ -6,12 +6,19 @@ services:
       - "8000:8000"
     volumes:
       - salyq-data:/data
-    env_file:
-      - .env
     environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:?Set OPENAI_API_KEY in .env or shell}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o}
+      - LLM_PROVIDER=${LLM_PROVIDER:-openai}
+      - JWT_SECRET=${JWT_SECRET:-salyq-docker-dev-secret}
+      - JWT_ACCESS_EXPIRE_MINUTES=30
+      - JWT_REFRESH_EXPIRE_DAYS=7
       - DB_PATH=/data/salyq.db
       - CHROMA_PATH=/data/chroma
+      - CHROMA_COLLECTION=rk_tax_code_2026_articles_e5_large
       - CORS_ORIGINS=http://localhost:3000
+      - HOST=0.0.0.0
+      - PORT=8000
     restart: unless-stopped
 
   frontend:
