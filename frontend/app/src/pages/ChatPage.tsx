@@ -139,6 +139,31 @@ export default function ChatPage() {
     }
   }
 
+  const pendingQuestion = useRef<string | null>(null);
+
+  async function handleSuggestionClick(text: string) {
+    setIsCreating(true);
+    try {
+      const session = await api.createSession();
+      await refreshSessions();
+      pendingQuestion.current = text;
+      navigate(`/chat/${session.id}`);
+    } catch {
+      // silent
+    } finally {
+      setIsCreating(false);
+    }
+  }
+
+  // Send pending question after navigating to new chat
+  useEffect(() => {
+    if (chatId && pendingQuestion.current) {
+      const text = pendingQuestion.current;
+      pendingQuestion.current = null;
+      handleSend(text);
+    }
+  }, [chatId]);
+
   async function handleDeleteChat(sessionId: string) {
     try {
       await api.deleteSession(sessionId);
@@ -329,7 +354,7 @@ export default function ChatPage() {
         {/* Messages */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto">
           {!chatId ? (
-            <EmptyState onNewChat={handleNewChat} />
+            <EmptyState onNewChat={handleNewChat} onSuggestionClick={handleSuggestionClick} />
           ) : messages.length === 0 ? (
             <EmptyChat onSend={handleSend} />
           ) : (
@@ -353,7 +378,7 @@ export default function ChatPage() {
   );
 }
 
-function EmptyState({ onNewChat }: { onNewChat: () => void }) {
+function EmptyState({ onNewChat, onSuggestionClick }: { onNewChat: () => void; onSuggestionClick: (text: string) => void }) {
   const { t } = useTranslation();
   const suggestions = [
     t("chat.suggestion1"),
@@ -393,16 +418,17 @@ function EmptyState({ onNewChat }: { onNewChat: () => void }) {
 
         <div className="mt-8 flex flex-wrap justify-center gap-2">
           {suggestions.map((s, i) => (
-            <motion.span
+            <motion.button
               key={i}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 + i * 0.1 }}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border/50 bg-card px-3.5 py-2 text-xs text-muted-foreground"
+              onClick={() => onSuggestionClick(s)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border/50 bg-card px-3.5 py-2 text-xs text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-foreground transition-all cursor-pointer"
             >
               <MessageSquare size={12} />
               {s}
-            </motion.span>
+            </motion.button>
           ))}
         </div>
       </motion.div>
