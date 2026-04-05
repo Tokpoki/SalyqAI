@@ -11,15 +11,15 @@ import CitationsInline from "./CitationsInline";
 const DEBT_KEYWORDS = ["задолженност", "долг", "недоимк", "пен", "неуплат", "просрочк", "переплат"];
 const KGD_DEBT_URL = "https://portal.kgd.gov.kz/ru/pages/info-services/info-absence-tax-debt";
 
-const URL_RE = /(https?:\/\/[^\s,)]+)/g;
+const URL_SPLIT = /(https?:\/\/[^\s,)]+)/;
 
 function Linkify({ text, className }: { text: string; className?: string }) {
-  const parts = text.split(URL_RE);
-  if (parts.length === 1) return <span>{text}</span>;
+  const parts = text.split(URL_SPLIT);
+  if (parts.length === 1) return <>{text}</>;
   return (
-    <span>
+    <>
       {parts.map((part, i) =>
-        URL_RE.test(part) ? (
+        part.match(/^https?:\/\//) ? (
           <a
             key={i}
             href={part}
@@ -33,7 +33,7 @@ function Linkify({ text, className }: { text: string; className?: string }) {
           <span key={i}>{part}</span>
         ),
       )}
-    </span>
+    </>
   );
 }
 
@@ -126,17 +126,11 @@ export default function ChatMessage({
         {clarifyingQuestions && clarifyingQuestions.length > 0 && (
           <div className="mt-3 space-y-1.5 border-t border-border/20 pt-3">
             <p className="text-xs font-semibold opacity-70">{t("msg.questions")}</p>
-            <div className="flex flex-wrap gap-2">
+            <ul className="list-disc pl-4 text-xs space-y-1">
               {clarifyingQuestions.map((q, i) => (
-                <button
-                  key={i}
-                  onClick={() => onSendQuestion?.(q)}
-                  className="text-left text-xs px-3 py-1.5 rounded-xl border border-primary/30 bg-primary/5 text-primary hover:bg-primary/15 hover:border-primary/50 transition-all cursor-pointer"
-                >
-                  {q}
-                </button>
+                <li key={i}>{q}</li>
               ))}
-            </div>
+            </ul>
           </div>
         )}
 

@@ -193,10 +193,12 @@ def generate_answer_stream(
         parsed = _normalize_output(raw_data)
 
         # Stream answer_text in small chunks for typing effect
+        import time
         answer = parsed["answer_text"]
-        chunk_size = 12
+        chunk_size = 8
         for i in range(0, len(answer), chunk_size):
             yield answer[i:i + chunk_size]
+            time.sleep(0.02)
 
         # Send complete structured data as final event
         yield "\x00" + json.dumps(parsed, ensure_ascii=False)
