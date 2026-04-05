@@ -1,6 +1,6 @@
-import { useNavigate, useParams } from "react-router-dom";
-import { Plus, Settings, MessageSquare, Trash2, Scale, Search, X, Calculator, ShieldCheck, TrendingUp } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { Plus, Settings, MessageSquare, Trash2, Scale, Search, X, Calculator, Wallet, ShieldCheck, TrendingUp } from "lucide-react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import type { SessionSummary } from "@/api/chat";
@@ -32,9 +32,10 @@ function formatDate(dateStr: string, t: (key: string) => string, lang: Lang) {
 
 export default function Sidebar({ sessions, onNewChat, onDeleteChat, isCreating, userEmail, isAdmin }: SidebarProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { chatId } = useParams();
   const [search, setSearch] = useState("");
-  const { lang, setLang, t } = useTranslation();
+  const { lang, t } = useTranslation();
 
   const filtered = search.trim()
     ? sessions.filter((s) =>
@@ -48,6 +49,10 @@ export default function Sidebar({ sessions, onNewChat, onDeleteChat, isCreating,
     if (!grouped[label]) grouped[label] = [];
     grouped[label].push(s);
   }
+
+  const isDashboard = location.pathname.startsWith("/dashboard");
+  const isIPCalculator = location.pathname.startsWith("/calculator/ip");
+  const isSalaryCalculator = location.pathname.startsWith("/calculator/salary");
 
   return (
     <div className="flex h-full w-[280px] flex-col bg-card/50 backdrop-blur-sm border-r border-border/50">
@@ -149,17 +154,39 @@ export default function Sidebar({ sessions, onNewChat, onDeleteChat, isCreating,
       <div className="border-t border-border/50 p-3 space-y-1">
         <button
           onClick={() => navigate("/dashboard")}
-          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium text-emerald-600 dark:text-emerald-400 transition-all hover:bg-emerald-500/10"
+          className={cn(
+            "flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
+            isDashboard
+              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+              : "text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10",
+          )}
         >
           <TrendingUp size={16} />
           {t("sidebar.optimization")}
         </button>
         <button
           onClick={() => navigate("/calculator/ip")}
-          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-muted-foreground transition-all hover:bg-accent hover:text-foreground"
+          className={cn(
+            "flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm transition-all",
+            isIPCalculator
+              ? "bg-accent text-foreground font-medium"
+              : "text-muted-foreground hover:bg-accent hover:text-foreground",
+          )}
         >
           <Calculator size={16} />
           {t("sidebar.calculator")}
+        </button>
+        <button
+          onClick={() => navigate("/calculator/salary")}
+          className={cn(
+            "flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm transition-all",
+            isSalaryCalculator
+              ? "bg-accent text-foreground font-medium"
+              : "text-muted-foreground hover:bg-accent hover:text-foreground",
+          )}
+        >
+          <Wallet size={16} />
+          {t("sidebar.salaryCalculator")}
         </button>
         {isAdmin && (
           <button

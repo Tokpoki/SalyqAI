@@ -13,6 +13,7 @@ const translations: Record<string, Record<Lang, string>> = {
   "sidebar.defaultTitle": { ru: "Новый чат", en: "New chat", kz: "Жаңа чат" },
   "sidebar.language": { ru: "Язык", en: "Language", kz: "Тіл" },
   "sidebar.calculator": { ru: "Расчёт налогов ИП", en: "IP Tax Calculator", kz: "ЖК салық есебі" },
+  "sidebar.salaryCalculator": { ru: "Расчет ЗП", en: "Salary", kz: "Жалақы" },
   "sidebar.admin": { ru: "Мониторинг", en: "Monitoring", kz: "Мониторинг" },
 
   // ─── Chat ───
@@ -230,6 +231,21 @@ const translations: Record<string, Record<Lang, string>> = {
   "calc.mrpNote": { ru: "МРП", en: "MCI", kz: "АЕК" },
   "calc.year": { ru: "Год расчёта", en: "Calculation year", kz: "Есептеу жылы" },
   "calc.error": { ru: "Ошибка расчёта. Проверьте данные.", en: "Calculation error. Check your input.", kz: "Есептеу қатесі. Деректерді тексеріңіз." },
+
+  // ─── Salary calculator ───
+  "salaryCalc.title": { ru: "Расчет ЗП", en: "Salary", kz: "Жалақы" },
+  "salaryCalc.subtitle": { ru: "Расчет зарплаты на руки и налоговой нагрузки работодателя", en: "Net salary and employer tax burden calculation", kz: "Қолға берілетін жалақы мен жұмыс беруші жүктемесін есептеу" },
+  "salaryCalc.grossSalary": { ru: "Оклад (начисленная зарплата)", en: "Gross salary", kz: "Жалақы (есептелген)" },
+  "salaryCalc.ipnHint": { ru: "ИПН считается после вычета ОПВ, ВОСМС и стандартного вычета 30 (14) МРП, а также выбранных льгот.", en: "IIT is calculated after OPV, medical deduction, standard 30 (14) MCI deduction, and selected benefits.", kz: "ЖТС ОПВ, МӘМС жарнасы, 30 (14) АЕК шегерімі және таңдалған жеңілдіктерден кейін есептеледі." },
+  "salaryCalc.calculate": { ru: "Рассчитать зарплату", en: "Calculate salary", kz: "Жалақыны есептеу" },
+  "salaryCalc.error": { ru: "Ошибка расчета зарплаты. Проверьте данные.", en: "Salary calculation failed. Check input.", kz: "Жалақыны есептеу қатесі. Деректерді тексеріңіз." },
+  "salaryCalc.summaryGross": { ru: "Начислено (брутто)", en: "Gross", kz: "Есептелген (брутто)" },
+  "salaryCalc.summaryNet": { ru: "На руки", en: "Net salary", kz: "Қолға" },
+  "salaryCalc.summaryDeductions": { ru: "Удержания", en: "Deductions", kz: "Ұсталымдар" },
+  "salaryCalc.summaryEmployer": { ru: "Расходы работодателя", en: "Employer costs", kz: "Жұмыс беруші шығындары" },
+  "salaryCalc.summaryPayroll": { ru: "Полная стоимость сотрудника", en: "Total employee cost", kz: "Қызметкердің толық құны" },
+  "salaryCalc.deductionsTitle": { ru: "Удержания из зарплаты", en: "Salary deductions", kz: "Жалақыдан ұсталымдар" },
+  "salaryCalc.employerTitle": { ru: "Начисления работодателя", en: "Employer contributions", kz: "Жұмыс беруші аударымдары" },
 
   // ─── Sidebar: optimization ───
   "sidebar.optimization": { ru: "Оптимизация налогов", en: "Tax Optimization", kz: "Салық оңтайландыру" },
