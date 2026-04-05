@@ -159,23 +159,28 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, userMsg]);
     setIsSending(true);
 
-    // Streaming placeholder for the assistant message
+    // Streaming: add placeholder only after first token arrives
     const streamId = `stream-${Date.now()}`;
     let streamedText = "";
-    setMessages((prev) => [
-      ...prev,
-      { id: streamId, role: "assistant", content: "" },
-    ]);
+    let placeholderAdded = false;
 
     try {
       await sendMessageStream(chatId, text, {
         onToken(token) {
           streamedText += token;
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === streamId ? { ...m, content: streamedText } : m,
-            ),
-          );
+          if (!placeholderAdded) {
+            placeholderAdded = true;
+            setMessages((prev) => [
+              ...prev,
+              { id: streamId, role: "assistant", content: streamedText },
+            ]);
+          } else {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === streamId ? { ...m, content: streamedText } : m,
+              ),
+            );
+          }
         },
         onDone(data) {
           setMessages((prev) =>
