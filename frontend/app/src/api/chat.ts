@@ -1,4 +1,5 @@
 import { apiFetch, getApiBase } from "./client";
+import { getAccessToken } from "@/lib/auth";
 
 export interface SessionSummary {
   id: string;
@@ -96,7 +97,6 @@ export async function sendMessageStream(
   text: string,
   callbacks: StreamCallbacks,
 ) {
-  const { getAccessToken } = await import("@/lib/auth");
   const token = getAccessToken();
   const API = getApiBase();
 
