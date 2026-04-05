@@ -2,6 +2,10 @@ import { getAccessToken, getRefreshToken, setTokens, clearTokens } from "@/lib/a
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
+export function getApiBase() {
+  return API;
+}
+
 let refreshPromise: Promise<boolean> | null = null;
 
 async function refreshAccessToken(): Promise<boolean> {

@@ -116,7 +116,7 @@ def build_user_prompt(
         f"Сегодняшняя дата: {today}\n\n"
         f"{profile_section}"
         f"История диалога:\n{json.dumps(history, ensure_ascii=False)}\n\n"
-        f"RAG-статьи:\n{json.dumps(rag_articles, ensure_ascii=False)}\n\n"
+        f"RAG-статьи:\n{json.dumps([{k: v for k, v in a.items() if k != 'snippet'} for a in rag_articles], ensure_ascii=False)}\n\n"
         f"Результат правил:\n{json.dumps(rules_result.get('obligations', []), ensure_ascii=False)}\n\n"
         f"Справочник по оплате налогов через банки:\n{BANK_PAYMENT_GUIDES}\n\n"
         f"Справочник по жизни налогоплательщика:\n{TAXPAYER_LIFECYCLE}\n\n"

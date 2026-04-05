@@ -1,4 +1,4 @@
-import { apiFetch } from "./client";
+import { apiFetch, getApiBase } from "./client";
 
 export interface SessionSummary {
   id: string;
@@ -83,4 +83,72 @@ export function deleteSession(sessionId: string) {
     `/api/v1/chat/sessions/${sessionId}`,
     { method: "DELETE" },
   );
+}
+
+export interface StreamCallbacks {
+  onToken: (token: string) => void;
+  onDone: (data: ChatMessageResponse) => void;
+  onError: (error: Error) => void;
+}
+
+export async function sendMessageStream(
+  sessionId: string,
+  text: string,
+  callbacks: StreamCallbacks,
+) {
+  const { getAccessToken } = await import("@/lib/auth");
+  const token = getAccessToken();
+  const API = getApiBase();
+
+  try {
+    const res = await fetch(
+      `${API}/api/v1/chat/sessions/${sessionId}/messages/stream`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ text }),
+      },
+    );
+
+    if (!res.ok) {
+      throw new Error(`Stream error: ${res.status}`);
+    }
+
+    const reader = res.body?.getReader();
+    if (!reader) throw new Error("No stream reader");
+
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const jsonStr = line.slice(6).trim();
+        if (!jsonStr) continue;
+
+        try {
+          const event = JSON.parse(jsonStr);
+          if (event.type === "token") {
+            callbacks.onToken(event.content);
+          } else if (event.type === "done") {
+            callbacks.onDone(event as ChatMessageResponse);
+          }
+        } catch {
+          // skip malformed JSON
+        }
+      }
+    }
+  } catch (err) {
+    callbacks.onError(err instanceof Error ? err : new Error(String(err)));
+  }
 }

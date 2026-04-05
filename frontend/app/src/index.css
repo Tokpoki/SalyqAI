@@ -146,3 +146,28 @@ textarea::-webkit-scrollbar {
 textarea {
   scrollbar-width: none;
 }
+
+/* Print styles for PDF export */
+@media print {
+  body { background: white !important; color: black !important; }
+  header, nav, button, form, .gradient-bg { display: none !important; }
+  .hidden.md\:block { display: none !important; }
+  .flex-1.overflow-y-auto { overflow: visible !important; }
+  .max-w-3xl { max-width: 100% !important; }
+  .max-w-\[75\%\] { max-width: 100% !important; }
+  .rounded-2xl { border: 1px solid #e5e7eb !important; }
+  .gradient-bg.text-white { background: #f0fdf4 !important; color: #064e3b !important; display: block !important; }
+  .shadow-lg, .shadow-sm { box-shadow: none !important; }
+
+  /* Show header for print */
+  .flex-1.overflow-y-auto::before {
+    content: "Salyq AI — Налоговая консультация";
+    display: block;
+    font-size: 18px;
+    font-weight: 700;
+    text-align: center;
+    padding: 16px 0;
+    border-bottom: 2px solid #059669;
+    margin-bottom: 16px;
+  }
+}

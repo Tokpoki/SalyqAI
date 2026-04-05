@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { User, Sparkles, ExternalLink } from "lucide-react";
+import { User, Sparkles, ExternalLink, ThumbsUp, ThumbsDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/i18n";
 import type { Obligation, Citation } from "@/api/chat";
+import { sendFeedback } from "@/api/feedback";
 import ObligationsInline from "./ObligationsInline";
 import CitationsInline from "./CitationsInline";
 
@@ -16,6 +18,8 @@ function shouldShowDebtButton(content: string, role: string): boolean {
 }
 
 interface ChatMessageProps {
+  id?: string;
+  sessionId?: string;
   role: "user" | "assistant" | "system";
   content: string;
   obligations?: Obligation[];
@@ -24,9 +28,12 @@ interface ChatMessageProps {
   clarifyingQuestions?: string[];
   confidence?: number;
   disclaimer?: string;
+  onSendQuestion?: (question: string) => void;
 }
 
 export default function ChatMessage({
+  id,
+  sessionId,
   role,
   content,
   obligations,
@@ -35,9 +42,17 @@ export default function ChatMessage({
   clarifyingQuestions,
   confidence,
   disclaimer,
+  onSendQuestion,
 }: ChatMessageProps) {
   const { t } = useTranslation();
   const isUser = role === "user";
+  const [feedbackGiven, setFeedbackGiven] = useState<"up" | "down" | null>(null);
+
+  function handleFeedback(rating: "up" | "down") {
+    if (feedbackGiven || !id || !sessionId) return;
+    setFeedbackGiven(rating);
+    sendFeedback(sessionId, id, rating).catch(() => {});
+  }
 
   return (
     <motion.div
@@ -83,11 +98,17 @@ export default function ChatMessage({
         {clarifyingQuestions && clarifyingQuestions.length > 0 && (
           <div className="mt-3 space-y-1.5 border-t border-border/20 pt-3">
             <p className="text-xs font-semibold opacity-70">{t("msg.questions")}</p>
-            <ul className="list-disc pl-4 text-xs space-y-1">
+            <div className="flex flex-wrap gap-2">
               {clarifyingQuestions.map((q, i) => (
-                <li key={i}>{q}</li>
+                <button
+                  key={i}
+                  onClick={() => onSendQuestion?.(q)}
+                  className="text-left text-xs px-3 py-1.5 rounded-xl border border-primary/30 bg-primary/5 text-primary hover:bg-primary/15 hover:border-primary/50 transition-all cursor-pointer"
+                >
+                  {q}
+                </button>
               ))}
-            </ul>
+            </div>
           </div>
         )}
 
@@ -130,6 +151,40 @@ export default function ChatMessage({
             <ExternalLink size={14} />
             {t("msg.checkDebt")}
           </a>
+        )}
+
+        {/* Feedback buttons */}
+        {!isUser && id && sessionId && !id.startsWith("stream-") && (
+          <div className="mt-2 flex items-center gap-2 border-t border-border/20 pt-2">
+            <button
+              onClick={() => handleFeedback("up")}
+              disabled={feedbackGiven !== null}
+              className={cn(
+                "flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] transition-all",
+                feedbackGiven === "up"
+                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                  : feedbackGiven
+                    ? "opacity-30 cursor-default text-muted-foreground"
+                    : "text-muted-foreground/60 hover:text-emerald-600 hover:bg-emerald-500/10",
+              )}
+            >
+              <ThumbsUp size={12} />
+            </button>
+            <button
+              onClick={() => handleFeedback("down")}
+              disabled={feedbackGiven !== null}
+              className={cn(
+                "flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] transition-all",
+                feedbackGiven === "down"
+                  ? "bg-red-500/15 text-red-600 dark:text-red-400"
+                  : feedbackGiven
+                    ? "opacity-30 cursor-default text-muted-foreground"
+                    : "text-muted-foreground/60 hover:text-red-600 hover:bg-red-500/10",
+              )}
+            >
+              <ThumbsDown size={12} />
+            </button>
+          </div>
         )}
       </div>
     </motion.div>

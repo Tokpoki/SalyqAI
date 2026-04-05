@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, Scale, Loader2, Sparkles, Plus, MessageSquare } from "lucide-react";
+import { Menu, Scale, Loader2, Sparkles, Plus, MessageSquare, Download } from "lucide-react";
 import { useTranslation } from "@/i18n";
 import Sidebar from "@/components/Sidebar";
 import ChatMessage from "@/components/ChatMessage";
@@ -11,6 +11,7 @@ import {
   createSession as _createSession,
   getSession as _getSession,
   sendMessage as _sendMessage,
+  sendMessageStream,
   deleteSession as _deleteSession,
   type SessionSummary,
   type Obligation,
@@ -158,30 +159,79 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, userMsg]);
     setIsSending(true);
 
+    // Streaming placeholder for the assistant message
+    const streamId = `stream-${Date.now()}`;
+    let streamedText = "";
+    setMessages((prev) => [
+      ...prev,
+      { id: streamId, role: "assistant", content: "" },
+    ]);
+
     try {
-      const res = await api.sendMessage(chatId, text);
-      const assistantMsg: UIMessage = {
-        id: res.message_id,
-        role: "assistant",
-        content: res.answer_text,
-        obligations: res.obligations,
-        citations: res.citations,
-        actionPlan: res.action_plan,
-        clarifyingQuestions: res.clarifying_questions,
-        confidence: res.confidence,
-        disclaimer: res.disclaimer,
-      };
-      setMessages((prev) => [...prev, assistantMsg]);
-      refreshSessions();
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `err-${Date.now()}`,
-          role: "assistant",
-          content: t("chat.error"),
+      await sendMessageStream(chatId, text, {
+        onToken(token) {
+          streamedText += token;
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === streamId ? { ...m, content: streamedText } : m,
+            ),
+          );
         },
-      ]);
+        onDone(data) {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === streamId
+                ? {
+                    id: data.message_id,
+                    role: "assistant" as const,
+                    content: data.answer_text,
+                    obligations: data.obligations,
+                    citations: data.citations,
+                    actionPlan: data.action_plan,
+                    clarifyingQuestions: data.clarifying_questions,
+                    confidence: data.confidence,
+                    disclaimer: data.disclaimer,
+                  }
+                : m,
+            ),
+          );
+          refreshSessions();
+        },
+        onError() {
+          // Fallback to non-streaming
+          setMessages((prev) => prev.filter((m) => m.id !== streamId));
+          api.sendMessage(chatId!, text).then((res) => {
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: res.message_id,
+                role: "assistant",
+                content: res.answer_text,
+                obligations: res.obligations,
+                citations: res.citations,
+                actionPlan: res.action_plan,
+                clarifyingQuestions: res.clarifying_questions,
+                confidence: res.confidence,
+                disclaimer: res.disclaimer,
+              },
+            ]);
+            refreshSessions();
+          }).catch(() => {
+            setMessages((prev) => [
+              ...prev,
+              { id: `err-${Date.now()}`, role: "assistant", content: t("chat.error") },
+            ]);
+          });
+        },
+      });
+    } catch {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === streamId
+            ? { ...m, content: streamedText || t("chat.error") }
+            : m,
+        ),
+      );
     } finally {
       setIsSending(false);
     }
@@ -260,6 +310,15 @@ export default function ChatPage() {
             </div>
             <h1 className="text-sm font-semibold">Salyq AI</h1>
           </div>
+          {chatId && messages.length > 0 && (
+            <button
+              onClick={() => window.print()}
+              className="ml-auto rounded-xl p-2 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              title="Экспорт в PDF"
+            >
+              <Download size={16} />
+            </button>
+          )}
         </header>
 
         {/* Messages */}
@@ -267,11 +326,11 @@ export default function ChatPage() {
           {!chatId ? (
             <EmptyState onNewChat={handleNewChat} />
           ) : messages.length === 0 ? (
-            <EmptyChat />
+            <EmptyChat onSend={handleSend} />
           ) : (
             <div className="mx-auto max-w-3xl py-4">
               {messages.map((m) => (
-                <ChatMessage key={m.id} {...m} />
+                <ChatMessage key={m.id} {...m} sessionId={chatId} onSendQuestion={handleSend} />
               ))}
               {isSending && <TypingIndicator />}
             </div>
@@ -346,7 +405,14 @@ function EmptyState({ onNewChat }: { onNewChat: () => void }) {
   );
 }
 
-function EmptyChat() {
+const DEMO_SCENARIOS = [
+  "Какие налоги платит ИП на упрощенке?",
+  "Какой штраф за несдачу формы 910.00 вовремя?",
+  "Рассчитай налоги ИП с доходом 5 млн тенге",
+  "Как оплатить налоги через Kaspi?",
+];
+
+function EmptyChat({ onSend }: { onSend?: (text: string) => void }) {
   const { t } = useTranslation();
   return (
     <div className="flex h-full flex-col items-center justify-center px-4 text-center">
@@ -356,41 +422,84 @@ function EmptyChat() {
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="relative z-10"
+        className="relative z-10 w-full max-w-md"
       >
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
           <MessageSquare size={20} className="text-primary" />
         </div>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground mb-6">
           {t("chat.askQuestion")}
         </p>
+        <div className="grid gap-2">
+          {DEMO_SCENARIOS.map((scenario, i) => (
+            <motion.button
+              key={i}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 * i }}
+              onClick={() => onSend?.(scenario)}
+              className="text-left text-sm px-4 py-3 rounded-xl border border-border/50 bg-card hover:border-primary/30 hover:bg-primary/5 text-muted-foreground hover:text-foreground transition-all"
+            >
+              <Sparkles size={12} className="inline mr-2 text-primary/60" />
+              {scenario}
+            </motion.button>
+          ))}
+        </div>
       </motion.div>
     </div>
   );
 }
 
+const LOADING_STEPS = [
+  "Ищу в Налоговом кодексе...",
+  "Анализирую статьи...",
+  "Формирую ответ...",
+];
+
 function TypingIndicator() {
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setStep((s) => (s + 1) % LOADING_STEPS.length);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="flex gap-3 px-4 py-4">
       <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-secondary border border-border/50">
-        <Sparkles size={14} className="text-primary" />
+        <Sparkles size={14} className="text-primary animate-pulse" />
       </div>
-      <div className="flex items-center gap-1.5 rounded-2xl rounded-tl-md bg-card border border-border/50 px-5 py-3.5 shadow-sm">
-        <motion.span
-          animate={{ opacity: [0.3, 1, 0.3] }}
-          transition={{ duration: 1.2, repeat: Infinity, delay: 0 }}
-          className="h-2 w-2 rounded-full bg-primary/50"
-        />
-        <motion.span
-          animate={{ opacity: [0.3, 1, 0.3] }}
-          transition={{ duration: 1.2, repeat: Infinity, delay: 0.2 }}
-          className="h-2 w-2 rounded-full bg-primary/50"
-        />
-        <motion.span
-          animate={{ opacity: [0.3, 1, 0.3] }}
-          transition={{ duration: 1.2, repeat: Infinity, delay: 0.4 }}
-          className="h-2 w-2 rounded-full bg-primary/50"
-        />
+      <div className="flex items-center gap-2.5 rounded-2xl rounded-tl-md bg-card border border-border/50 px-5 py-3.5 shadow-sm">
+        <div className="flex items-center gap-1.5">
+          <motion.span
+            animate={{ opacity: [0.3, 1, 0.3] }}
+            transition={{ duration: 1.2, repeat: Infinity, delay: 0 }}
+            className="h-2 w-2 rounded-full bg-primary/50"
+          />
+          <motion.span
+            animate={{ opacity: [0.3, 1, 0.3] }}
+            transition={{ duration: 1.2, repeat: Infinity, delay: 0.2 }}
+            className="h-2 w-2 rounded-full bg-primary/50"
+          />
+          <motion.span
+            animate={{ opacity: [0.3, 1, 0.3] }}
+            transition={{ duration: 1.2, repeat: Infinity, delay: 0.4 }}
+            className="h-2 w-2 rounded-full bg-primary/50"
+          />
+        </div>
+        <AnimatePresence mode="wait">
+          <motion.span
+            key={step}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            className="text-xs text-muted-foreground/70"
+          >
+            {LOADING_STEPS[step]}
+          </motion.span>
+        </AnimatePresence>
       </div>
     </div>
   );

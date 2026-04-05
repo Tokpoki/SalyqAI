@@ -1,18 +1,59 @@
 """Chat session & message routes."""
 
+import json
 import uuid
 import traceback
 from datetime import datetime, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from db import database as db_module
 from src.auth.dependencies import get_current_user
 from src.config import get_settings
-from src.llm.client import generate_answer, generate_chat_title
+from src.llm.client import generate_answer, generate_answer_stream, generate_chat_title
 from src.utils.error_logger import log_error
+
+import re as _re
+
+
+def _rerank(query: str, articles: list[dict], top_n: int = 5) -> list[dict]:
+    """Rerank articles by keyword overlap with the query (free, no external API)."""
+    if len(articles) <= top_n:
+        return articles
+
+    q_lower = query.lower().replace("ё", "е")
+    q_words = {w for w in q_lower.split() if len(w) > 2}
+    q_bigrams = set()
+    words_list = list(q_words)
+    for i in range(len(words_list) - 1):
+        q_bigrams.add(f"{words_list[i]} {words_list[i+1]}")
+
+    scored = []
+    for article in articles:
+        text = (article.get("full_text") or article.get("snippet", "")).lower().replace("ё", "е")
+        # Word overlap score
+        word_hits = sum(1 for w in q_words if w in text)
+        # Bigram overlap (phrase matching bonus)
+        bigram_hits = sum(2 for bg in q_bigrams if bg in text)
+        # Title match bonus
+        title = (article.get("article_title") or "").lower().replace("ё", "е")
+        title_hits = sum(3 for w in q_words if w in title)
+        # Combine with original embedding score
+        keyword_score = word_hits + bigram_hits + title_hits
+        combined = article["score"] + keyword_score * 0.5
+        scored.append((combined, article))
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+    result = []
+    for combined_score, article in scored[:top_n]:
+        a = article.copy()
+        a["score"] = combined_score
+        result.append(a)
+    return result
+
 
 _SYNONYM_MAP = {
     "упрощенк": ["упрощен", "специальн налогов режим", "декларац"],
@@ -105,10 +146,12 @@ def _keyword_retrieve(query: str, top_k: int = 5) -> list[dict]:
                 for i, doc_id in enumerate(results["ids"]):
                     meta = results["metadatas"][i] if results["metadatas"] else {}
                     doc = results["documents"][i] if results["documents"] else ""
+                    full = " ".join(doc.split())
                     results_map[doc_id] = {
                         "article_number": meta.get("article_number"),
                         "article_title": meta.get("article_title"),
-                        "snippet": " ".join(doc.split())[:300],
+                        "snippet": full[:300],
+                        "full_text": full,
                         "score": 100,
                     }
             except Exception:
@@ -133,16 +176,53 @@ def _keyword_retrieve(query: str, top_k: int = 5) -> list[dict]:
                 meta = metas[i] if metas else {}
                 doc = docs[i] if docs else ""
                 dist = distances[i] if distances else 1.0
+                full = " ".join(doc.split())
                 results_map[doc_id] = {
                     "article_number": meta.get("article_number"),
                     "article_title": meta.get("article_title"),
-                    "snippet": " ".join(doc.split())[:300],
+                    "snippet": full[:300],
+                    "full_text": full,
                     "score": max(0, 10 - dist * 5),
                 }
         except Exception:
             pass
 
+        # 3) Second semantic pass with expanded formal terms
+        expanded_terms = _expand_query_terms(query)
+        if expanded_terms:
+            expanded_query = " ".join(expanded_terms)
+            try:
+                expanded_embedding = _embed_query(expanded_query)
+                exp_results = collection.query(
+                    query_embeddings=[expanded_embedding],
+                    n_results=top_k,
+                    include=["documents", "metadatas", "distances"],
+                )
+                exp_ids = exp_results.get("ids", [[]])[0]
+                exp_docs = exp_results.get("documents", [[]])[0]
+                exp_metas = exp_results.get("metadatas", [[]])[0]
+                exp_distances = exp_results.get("distances", [[]])[0]
+
+                for i, doc_id in enumerate(exp_ids):
+                    if doc_id in results_map:
+                        continue
+                    meta = exp_metas[i] if exp_metas else {}
+                    doc = exp_docs[i] if exp_docs else ""
+                    dist = exp_distances[i] if exp_distances else 1.0
+                    full = " ".join(doc.split())
+                    results_map[doc_id] = {
+                        "article_number": meta.get("article_number"),
+                        "article_title": meta.get("article_title"),
+                        "snippet": full[:300],
+                        "full_text": full,
+                        "score": max(0, 10 - dist * 5) * 0.9,  # slightly lower weight
+                    }
+            except Exception:
+                pass
+
         ranked = sorted(results_map.values(), key=lambda x: x["score"], reverse=True)
+        # Filter out low-relevance results (direct lookups score=100, keep those always)
+        ranked = [r for r in ranked if r["score"] >= 2.0]
         return ranked[:top_k]
     except Exception:
         return []
@@ -415,7 +495,8 @@ def send_message(
         ]
         history = all_messages[-15:]
 
-        rag_articles = _keyword_retrieve(query=body.text, top_k=5)
+        rag_articles = _keyword_retrieve(query=body.text, top_k=10)
+        rag_articles = _rerank(query=body.text, articles=rag_articles, top_n=5)
 
         # Load user profile for personalization
         profile = {}
@@ -472,3 +553,107 @@ def send_message(
             stack=traceback.format_exc(),
         )
         raise HTTPException(status_code=500, detail="Internal server error") from exc
+
+
+@router.post("/sessions/{sessionId}/messages/stream")
+def send_message_stream(
+    sessionId: UUID,
+    body: SendMessageRequest,
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(get_current_user),
+):
+    """SSE streaming endpoint: streams answer text, then sends structured JSON."""
+    get_session = _require_db_func("get_session")
+    get_messages = _require_db_func("get_messages")
+    insert_message = _require_db_func("insert_message")
+
+    session_id_str = str(sessionId)
+    session = get_session(session_id_str)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    _assert_session_owner(session, current_user["id"])
+
+    now = datetime.now(timezone.utc).isoformat()
+    existing_messages = get_messages(session_id_str)
+    user_message_count = sum(1 for m in existing_messages if m.get("role") == "user")
+
+    user_msg_id = str(uuid.uuid4())
+    insert_message(user_msg_id, session_id_str, "user", body.text, now)
+
+    all_messages = [
+        {"role": m["role"], "content": m["content"]}
+        for m in get_messages(session_id_str)
+        if m.get("role") in {"user", "assistant", "system"}
+    ]
+    history = all_messages[-15:]
+
+    rag_articles = _keyword_retrieve(query=body.text, top_k=10)
+    rag_articles = _rerank(query=body.text, articles=rag_articles, top_n=5)
+
+    profile = {}
+    get_profile_fn = getattr(db_module, "get_or_create_profile_by_user", None)
+    if callable(get_profile_fn):
+        try:
+            profile = get_profile_fn(current_user["id"]) or {}
+        except Exception:
+            pass
+    profile["name"] = current_user.get("name", "")
+    profile["email"] = current_user.get("email", "")
+    rules_result = {"obligations": [], "profile": profile}
+
+    if user_message_count == 0:
+        background_tasks.add_task(_set_title_async, session_id_str, body.text)
+
+    def event_generator():
+        assistant_msg_id = str(uuid.uuid4())
+        parsed_output = None
+
+        for chunk in generate_answer_stream(
+            history=history, rag_articles=rag_articles, rules_result=rules_result
+        ):
+            if chunk.startswith("\x00"):
+                # Final structured data
+                parsed_output = json.loads(chunk[1:])
+                break
+            # Stream text token
+            yield f"data: {json.dumps({'type': 'token', 'content': chunk}, ensure_ascii=False)}\n\n"
+
+        if not parsed_output:
+            from src.llm.client import _fallback_answer
+            parsed_output = _fallback_answer()
+
+        # Save assistant message to DB
+        assistant_now = datetime.now(timezone.utc).isoformat()
+        advice_data = {
+            "action_plan": parsed_output["action_plan"],
+            "obligations": parsed_output["obligations"],
+            "clarifying_questions": parsed_output["clarifying_questions"],
+            "citations": parsed_output["citations"],
+            "disclaimer": parsed_output["disclaimer"],
+        }
+        insert_message(
+            assistant_msg_id, session_id_str, "assistant",
+            parsed_output["answer_text"], assistant_now,
+            advice_json=advice_data,
+            confidence=parsed_output["confidence"],
+        )
+
+        # Send final structured event
+        final_payload = {
+            "type": "done",
+            "message_id": assistant_msg_id,
+            "answer_text": parsed_output["answer_text"],
+            "action_plan": parsed_output["action_plan"],
+            "obligations": parsed_output["obligations"],
+            "clarifying_questions": parsed_output["clarifying_questions"],
+            "citations": parsed_output["citations"],
+            "confidence": parsed_output["confidence"],
+            "disclaimer": parsed_output["disclaimer"],
+        }
+        yield f"data: {json.dumps(final_payload, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any
+from typing import Any, Generator
 
 # import google.generativeai as genai  # Gemini — temporarily disabled
 from openai import OpenAI
@@ -149,6 +149,55 @@ def generate_answer(
         import traceback
         traceback.print_exc()
         return _fallback_answer()
+
+
+def generate_answer_stream(
+    history: list[dict],
+    rag_articles: list[dict],
+    rules_result: dict,
+) -> Generator[str, None, None]:
+    """Stream the LLM response token-by-token.
+
+    Yields raw text chunks. The final chunk is the complete parsed JSON
+    (prefixed with \\x00 sentinel) so the caller can extract structured data.
+    """
+    settings = get_settings()
+    api_key = settings.openai_api_key
+    if not api_key:
+        fallback = _fallback_answer()
+        yield "\x00" + json.dumps(fallback, ensure_ascii=False)
+        return
+
+    language = rules_result.get("profile", {}).get("language", "ru") or "ru"
+    prompt = build_user_prompt(history=history, rag_articles=rag_articles, rules_result=rules_result)
+
+    client = OpenAI(api_key=api_key)
+    try:
+        stream = client.chat.completions.create(
+            model=settings.openai_model,
+            messages=[
+                {"role": "system", "content": get_system_prompt(language)},
+                {"role": "user", "content": prompt},
+            ],
+            response_format={"type": "json_object"},
+            stream=True,
+        )
+        full_text = ""
+        for chunk in stream:
+            delta = chunk.choices[0].delta if chunk.choices else None
+            if delta and delta.content:
+                full_text += delta.content
+                yield delta.content
+
+        # Parse the completed JSON and send structured data as final event
+        raw_data = _extract_json_object(full_text)
+        parsed = _normalize_output(raw_data)
+        yield "\x00" + json.dumps(parsed, ensure_ascii=False)
+    except Exception:
+        import traceback
+        traceback.print_exc()
+        fallback = _fallback_answer()
+        yield "\x00" + json.dumps(fallback, ensure_ascii=False)
 
 
 def _generate_title_openai(first_user_message: str) -> str:

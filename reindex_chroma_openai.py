@@ -2,17 +2,19 @@
 
 Reads all JSON sources and indexes them into a single collection.
 Each source uses its own ID prefix to avoid collisions:
-  - tax code:  article-{number}
-  - КоАП:      koap-{number}
+  - tax code:  article-{number}  (or article-{number}-p{n} for sub-chunks)
+  - КоАП:      koap-{number}     (or koap-{number}-p{n} for sub-chunks)
 """
 
 import json
 import os
+import re
 import shutil
+import time
 from pathlib import Path
 
 import chromadb
-from openai import OpenAI
+from openai import OpenAI, RateLimitError
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / "backend" / "api_orchestrator" / ".env", override=False)
@@ -33,24 +35,92 @@ BATCH_SIZE = 100
 
 
 MAX_CHARS = 15000  # ~4000 tokens, safe for 8192 limit
+CHUNK_THRESHOLD = 3000  # articles longer than this get sub-chunked
+PARAGRAPH_RE = re.compile(r"(?=^\d+\.\s)", re.MULTILINE)
+RETRY_DELAY_RE = re.compile(r"try again in (\d+)ms", re.IGNORECASE)
+MAX_EMBED_RETRIES = 8
+
+
+def _article_header(article: dict) -> str:
+    parts = [
+        f"Раздел {article['section_number']}. {article['section_title']}" if article.get("section_number") else "",
+        f"Гла��а {article['chapter_number']}. {article['chapter_title']}" if article.get("chapter_number") else "",
+        f"Ста��ья {article['article_number']}. {article['article_title']}",
+    ]
+    return "\n".join(p for p in parts if p)
 
 
 def build_document(article: dict) -> str:
-    parts = [
-        f"Раздел {article['section_number']}. {article['section_title']}" if article.get("section_number") else "",
-        f"Глава {article['chapter_number']}. {article['chapter_title']}" if article.get("chapter_number") else "",
-        f"Статья {article['article_number']}. {article['article_title']}",
-        article.get("text", ""),
-    ]
-    doc = "\n".join(p for p in parts if p)
+    header = _article_header(article)
+    doc = f"{header}\n{article.get('text', '')}"
     if len(doc) > MAX_CHARS:
         doc = doc[:MAX_CHARS]
     return doc
 
 
+def split_article_into_chunks(article: dict) -> list[tuple[str, str]]:
+    """Split a long article into sub-chunks by top-level paragraphs.
+
+    Returns list of (chunk_id_suffix, chunk_text) tuples.
+    Short articles return a single chunk with empty suffix.
+    """
+    text = article.get("text", "")
+    header = _article_header(article)
+
+    if len(text) <= CHUNK_THRESHOLD:
+        doc = f"{header}\n{text}"
+        if len(doc) > MAX_CHARS:
+            doc = doc[:MAX_CHARS]
+        return [("", doc)]
+
+    paragraphs = PARAGRAPH_RE.split(text)
+    paragraphs = [p.strip() for p in paragraphs if p.strip()]
+
+    if len(paragraphs) <= 1:
+        doc = f"{header}\n{text}"
+        if len(doc) > MAX_CHARS:
+            doc = doc[:MAX_CHARS]
+        return [("", doc)]
+
+    chunks: list[tuple[str, str]] = []
+    current_chunk = ""
+    chunk_idx = 1
+
+    for para in paragraphs:
+        if current_chunk and len(current_chunk) + len(para) > CHUNK_THRESHOLD:
+            doc = f"{header}\n{current_chunk}"
+            if len(doc) > MAX_CHARS:
+                doc = doc[:MAX_CHARS]
+            chunks.append((f"-p{chunk_idx}", doc))
+            chunk_idx += 1
+            current_chunk = para
+        else:
+            current_chunk = f"{current_chunk}\n{para}" if current_chunk else para
+
+    if current_chunk:
+        doc = f"{header}\n{current_chunk}"
+        if len(doc) > MAX_CHARS:
+            doc = doc[:MAX_CHARS]
+        chunks.append((f"-p{chunk_idx}", doc))
+
+    return chunks
+
+
 def embed_batch(client: OpenAI, texts: list[str]) -> list[list[float]]:
-    response = client.embeddings.create(model=EMBEDDING_MODEL, input=texts)
-    return [item.embedding for item in response.data]
+    for attempt in range(1, MAX_EMBED_RETRIES + 1):
+        try:
+            response = client.embeddings.create(model=EMBEDDING_MODEL, input=texts)
+            return [item.embedding for item in response.data]
+        except RateLimitError as exc:
+            if attempt == MAX_EMBED_RETRIES:
+                raise
+
+            match = RETRY_DELAY_RE.search(str(exc))
+            delay = max(1.0, int(match.group(1)) / 1000) if match else min(30.0, 2 ** attempt)
+            print(f"  Rate limited, retrying in {delay:.1f}s (attempt {attempt}/{MAX_EMBED_RETRIES})")
+            time.sleep(delay)
+
+    raise RuntimeError("Failed to embed batch after retries")
 
 
 def load_articles(json_path: Path) -> list[dict]:
@@ -81,21 +151,26 @@ def main():
         articles = load_articles(json_path)
         print(f"  Found {len(articles)} articles (source={source_tag})")
 
+        chunked_count = 0
         for a in articles:
-            all_documents.append(build_document(a))
-            all_ids.append(f"{id_prefix}-{a['article_number']}")
-            all_metadatas.append({
-                "article_number": a["article_number"],
-                "article_title": a["article_title"],
-                "section_number": a.get("section_number") or "",
-                "section_title": a.get("section_title") or "",
-                "chapter_number": a.get("chapter_number") or "",
-                "chapter_title": a.get("chapter_title") or "",
-                "source": source_tag,
-            })
-            all_raw_documents.append(
-                f"Статья {a['article_number']}. {a['article_title']}\n{a.get('text', '')}"
-            )
+            chunks = split_article_into_chunks(a)
+            if len(chunks) > 1:
+                chunked_count += 1
+            for suffix, chunk_doc in chunks:
+                all_documents.append(chunk_doc)
+                all_ids.append(f"{id_prefix}-{a['article_number']}{suffix}")
+                all_metadatas.append({
+                    "article_number": a["article_number"],
+                    "article_title": a["article_title"],
+                    "section_number": a.get("section_number") or "",
+                    "section_title": a.get("section_title") or "",
+                    "chapter_number": a.get("chapter_number") or "",
+                    "chapter_title": a.get("chapter_title") or "",
+                    "source": source_tag,
+                    "chunk_suffix": suffix,
+                })
+                all_raw_documents.append(chunk_doc)
+        print(f"  Sub-chunked {chunked_count} long articles")
 
     if not all_documents:
         raise RuntimeError("No articles found in any source JSON.")
