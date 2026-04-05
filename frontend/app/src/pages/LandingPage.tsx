@@ -6,12 +6,12 @@ import {
   Search,
   FileText,
   ShieldCheck,
-  Zap,
   MessageSquare,
   ArrowRight,
   CheckCircle2,
   Sparkles,
   ChevronDown,
+  TrendingUp,
 } from "lucide-react";
 import { isAuthenticated } from "@/lib/auth";
 import { useTranslation } from "@/i18n";
@@ -63,7 +63,7 @@ export default function LandingPage() {
     { icon: Search, gradient: "from-emerald-500 to-teal-500", title: t("landing.feat1title"), desc: t("landing.feat1desc") },
     { icon: FileText, gradient: "from-teal-500 to-cyan-500", title: t("landing.feat2title"), desc: t("landing.feat2desc") },
     { icon: ShieldCheck, gradient: "from-cyan-500 to-sky-500", title: t("landing.feat3title"), desc: t("landing.feat3desc") },
-    { icon: Zap, gradient: "from-sky-500 to-blue-500", title: t("landing.feat4title"), desc: t("landing.feat4desc") },
+    { icon: TrendingUp, gradient: "from-sky-500 to-blue-500", title: t("landing.feat4title"), desc: t("landing.feat4desc") },
   ];
 
   const steps = [
@@ -338,6 +338,60 @@ export default function LandingPage() {
               </div>
             </div>
           </FadeInWhenVisible>
+        </div>
+      </section>
+
+      {/* ═══════════ Savings Examples ═══════════ */}
+      <section className="relative py-24 sm:py-32">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute top-0 right-1/4 h-[400px] w-[400px] rounded-full bg-emerald-500/5 blur-[100px]" />
+        </div>
+
+        <div className="relative mx-auto max-w-5xl px-6">
+          <FadeInWhenVisible className="text-center">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
+              {t("landing.savingsTitle")}{" "}
+              <span className="gradient-text">{t("landing.savingsHighlight")}</span>
+            </h2>
+            <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
+              {t("landing.savingsSubtitle")}
+            </p>
+          </FadeInWhenVisible>
+
+          <div className="mt-12 grid gap-6 md:grid-cols-2">
+            {[
+              {
+                persona: t("landing.persona1title"),
+                desc: t("landing.persona1desc"),
+                saving: "180 000 ₸",
+                savingLabel: t("landing.savingPerYear"),
+              },
+              {
+                persona: t("landing.persona2title"),
+                desc: t("landing.persona2desc"),
+                saving: "520 000 ₸",
+                savingLabel: t("landing.savingPerYear"),
+              },
+            ].map((item, i) => (
+              <FadeInWhenVisible key={i} delay={i * 0.15}>
+                <div className="group relative rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:border-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/5">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 shadow-lg">
+                      <TrendingUp size={22} className="text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-lg">{item.persona}</h3>
+                      <p className="mt-1 text-sm text-muted-foreground leading-relaxed">{item.desc}</p>
+                      <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-4 py-1.5">
+                        <span className="text-lg font-bold gradient-text">{item.saving}</span>
+                        <span className="text-xs text-muted-foreground">/ {item.savingLabel}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </FadeInWhenVisible>
+            ))}
+          </div>
         </div>
       </section>
 

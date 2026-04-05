@@ -12,7 +12,7 @@ class TaxConstants:
 
 CONSTANTS_BY_YEAR: dict[int, TaxConstants] = {
     2025: TaxConstants(year=2025, mzp=85_000, mrp=3_932),
-    2026: TaxConstants(year=2026, mzp=85_000, mrp=4_053),
+    2026: TaxConstants(year=2026, mzp=85_000, mrp=4_325),
     2027: TaxConstants(year=2027, mzp=85_000, mrp=4_180),
 }
 

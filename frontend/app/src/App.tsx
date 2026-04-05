@@ -7,6 +7,7 @@ import ChatPage from "@/pages/ChatPage";
 import SettingsPage from "@/pages/SettingsPage";
 import CalculatorIPPage from "@/pages/CalculatorIPPage";
 import AdminPage from "@/pages/AdminPage";
+import DashboardPage from "@/pages/DashboardPage";
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route path="/chat" element={<ChatPage />} />
         <Route path="/chat/:chatId" element={<ChatPage />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/calculator/ip" element={<CalculatorIPPage />} />
         <Route path="/admin" element={<AdminPage />} />

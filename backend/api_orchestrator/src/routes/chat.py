@@ -511,6 +511,15 @@ def send_message(
         profile["email"] = current_user.get("email", "")
 
         rules_result = {"obligations": [], "profile": profile}
+
+        # Inject tax optimization if profile has enough data
+        if profile.get("annual_income_kzt") and profile.get("tax_regime"):
+            try:
+                from src.optimizer.engine import optimize as run_optimize
+                rules_result["optimization"] = run_optimize(profile, year=2026)
+            except Exception:
+                pass
+
         llm_output = generate_answer(history=history, rag_articles=rag_articles, rules_result=rules_result)
 
         assistant_msg_id = str(uuid.uuid4())
@@ -600,6 +609,14 @@ def send_message_stream(
     profile["name"] = current_user.get("name", "")
     profile["email"] = current_user.get("email", "")
     rules_result = {"obligations": [], "profile": profile}
+
+    # Inject tax optimization if profile has enough data
+    if profile.get("annual_income_kzt") and profile.get("tax_regime"):
+        try:
+            from src.optimizer.engine import optimize as run_optimize
+            rules_result["optimization"] = run_optimize(profile, year=2026)
+        except Exception:
+            pass
 
     if user_message_count == 0:
         background_tasks.add_task(_set_title_async, session_id_str, body.text)

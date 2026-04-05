@@ -132,9 +132,9 @@ def calc_employee(salary: float, c: TaxConstants) -> dict:
         "amount": vosms_emp,
     })
 
-    # ИПН — 10% от (ЗП - ОПВ - ВОСМС - 14МРП)
-    # ст. 353 НК РК — стандартный вычет 14 МРП
-    ipn_base = salary - opv - vosms_emp - (14 * c.mrp)
+    # ИПН — 10% от (ЗП - ОПВ - ВОСМС - 30МРП)
+    # ст. 346 НК РК — стандартный вычет 30 МРП
+    ipn_base = salary - opv - vosms_emp - (30 * c.mrp)
     ipn_base = max(ipn_base, 0)
     ipn = round(ipn_base * 0.10)
     deductions.append({

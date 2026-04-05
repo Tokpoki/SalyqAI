@@ -25,6 +25,7 @@ from routes.knowledge import router as knowledge_router
 from routes.profile import router as profile_router
 from routes.calculator import router as calculator_router
 from routes.admin import router as admin_router
+from routes.optimizer import router as optimizer_router
 
 # ─── Structured logging ──────────────────────────────────────────────
 
@@ -60,6 +61,7 @@ app.include_router(knowledge_router)
 app.include_router(internal_router)
 app.include_router(calculator_router)
 app.include_router(admin_router)
+app.include_router(optimizer_router)
 
 
 @app.get("/api/v1/health")
