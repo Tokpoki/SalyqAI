@@ -156,10 +156,10 @@ def generate_answer_stream(
     rag_articles: list[dict],
     rules_result: dict,
 ) -> Generator[str, None, None]:
-    """Stream the LLM response token-by-token.
+    """Collect full LLM JSON response, then stream answer_text chunk by chunk.
 
-    Yields raw text chunks. The final chunk is the complete parsed JSON
-    (prefixed with \\x00 sentinel) so the caller can extract structured data.
+    Yields text chunks from answer_text. The final yield is the complete parsed
+    JSON (prefixed with \\x00 sentinel) so the caller can send structured data.
     """
     settings = get_settings()
     api_key = settings.openai_api_key
@@ -173,6 +173,7 @@ def generate_answer_stream(
 
     client = OpenAI(api_key=api_key)
     try:
+        # Collect full JSON response first (streamed from OpenAI for speed)
         stream = client.chat.completions.create(
             model=settings.openai_model,
             messages=[
@@ -187,11 +188,17 @@ def generate_answer_stream(
             delta = chunk.choices[0].delta if chunk.choices else None
             if delta and delta.content:
                 full_text += delta.content
-                yield delta.content
 
-        # Parse the completed JSON and send structured data as final event
         raw_data = _extract_json_object(full_text)
         parsed = _normalize_output(raw_data)
+
+        # Stream answer_text in small chunks for typing effect
+        answer = parsed["answer_text"]
+        chunk_size = 12
+        for i in range(0, len(answer), chunk_size):
+            yield answer[i:i + chunk_size]
+
+        # Send complete structured data as final event
         yield "\x00" + json.dumps(parsed, ensure_ascii=False)
     except Exception:
         import traceback

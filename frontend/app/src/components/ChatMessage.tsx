@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { User, Sparkles, ExternalLink, ThumbsUp, ThumbsDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,32 @@ import CitationsInline from "./CitationsInline";
 
 const DEBT_KEYWORDS = ["задолженност", "долг", "недоимк", "пен", "неуплат", "просрочк", "переплат"];
 const KGD_DEBT_URL = "https://portal.kgd.gov.kz/ru/pages/info-services/info-absence-tax-debt";
+
+const URL_RE = /(https?:\/\/[^\s,)]+)/g;
+
+function Linkify({ text, className }: { text: string; className?: string }) {
+  const parts = text.split(URL_RE);
+  if (parts.length === 1) return <span>{text}</span>;
+  return (
+    <span>
+      {parts.map((part, i) =>
+        URL_RE.test(part) ? (
+          <a
+            key={i}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={className || "underline text-primary hover:text-primary/80 break-all"}
+          >
+            {part}
+          </a>
+        ) : (
+          <span key={i}>{part}</span>
+        ),
+      )}
+    </span>
+  );
+}
 
 function shouldShowDebtButton(content: string, role: string): boolean {
   if (role !== "assistant") return false;
@@ -82,7 +108,9 @@ export default function ChatMessage({
             : "bg-card border border-border/50 text-foreground rounded-tl-md shadow-sm",
         )}
       >
-        <p className="whitespace-pre-wrap">{content}</p>
+        <p className="whitespace-pre-wrap">
+          <Linkify text={content} className={isUser ? "underline text-white/90 hover:text-white break-all" : undefined} />
+        </p>
 
         {actionPlan && actionPlan.length > 0 && (
           <div className="mt-3 space-y-1.5 border-t border-border/20 pt-3">
