@@ -1,0 +1,56 @@
+DB initialized at startup | admin_emails configured: 0
+INFO:     127.0.0.1:53926 - "GET /api/v1/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53931 - "GET /api/v1/health HTTP/1.1" 200 OK
+2026-04-05 19:57:02,463 INFO     salyq.requests | [33m401[0m POST /api/v1/calculator/salary-monthly [1ms]
+INFO:     127.0.0.1:65141 - "POST /api/v1/calculator/salary-monthly HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57031 - "OPTIONS /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50808 - "OPTIONS /api/v1/chat/sessions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59678 - "OPTIONS /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61941 - "OPTIONS /api/v1/chat/sessions HTTP/1.1" 200 OK
+2026-04-05 19:58:57,085 INFO     salyq.requests | [33m401[0m GET /api/v1/auth/me [2ms]
+INFO:     127.0.0.1:57031 - "GET /api/v1/auth/me HTTP/1.1" 401 Unauthorized
+2026-04-05 19:58:57,086 INFO     salyq.requests | [33m401[0m GET /api/v1/chat/sessions [3ms]
+INFO:     127.0.0.1:50808 - "GET /api/v1/chat/sessions HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57031 - "OPTIONS /api/v1/auth/refresh HTTP/1.1" 200 OK
+2026-04-05 19:58:57,090 INFO     salyq.requests | [33m401[0m GET /api/v1/chat/sessions [1ms]
+INFO:     127.0.0.1:50808 - "GET /api/v1/chat/sessions HTTP/1.1" 401 Unauthorized
+2026-04-05 19:58:57,092 INFO     salyq.requests | [33m401[0m GET /api/v1/auth/me [3ms]
+INFO:     127.0.0.1:61941 - "GET /api/v1/auth/me HTTP/1.1" 401 Unauthorized
+2026-04-05 19:58:57,101 INFO     salyq.requests | [32m200[0m POST /api/v1/auth/refresh [7ms]
+INFO:     127.0.0.1:59678 - "POST /api/v1/auth/refresh HTTP/1.1" 200 OK
+2026-04-05 19:58:57,113 INFO     salyq.requests | [32m200[0m GET /api/v1/chat/sessions [7ms] user=524632c9-7ecb-4243-a28d-02f76d45ee9c
+INFO:     127.0.0.1:61941 - "GET /api/v1/chat/sessions HTTP/1.1" 200 OK
+2026-04-05 19:58:57,125 INFO     salyq.requests | [32m200[0m GET /api/v1/auth/me [18ms] user=524632c9-7ecb-4243-a28d-02f76d45ee9c
+INFO:     127.0.0.1:59678 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50808 - "OPTIONS /api/v1/admin/check HTTP/1.1" 200 OK
+2026-04-05 19:58:57,135 INFO     salyq.requests | [32m200[0m GET /api/v1/chat/sessions [19ms] user=524632c9-7ecb-4243-a28d-02f76d45ee9c
+INFO:     127.0.0.1:61941 - "GET /api/v1/chat/sessions HTTP/1.1" 200 OK
+2026-04-05 19:58:57,144 INFO     salyq.requests | [32m200[0m GET /api/v1/auth/me [16ms] user=524632c9-7ecb-4243-a28d-02f76d45ee9c
+INFO:     127.0.0.1:59678 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+2026-04-05 19:58:57,147 INFO     salyq.requests | [33m403[0m GET /api/v1/admin/check [16ms] user=524632c9-7ecb-4243-a28d-02f76d45ee9c
+INFO:     127.0.0.1:50808 - "GET /api/v1/admin/check HTTP/1.1" 403 Forbidden
+2026-04-05 19:58:57,156 INFO     salyq.requests | [33m403[0m GET /api/v1/admin/check [5ms] user=524632c9-7ecb-4243-a28d-02f76d45ee9c
+INFO:     127.0.0.1:50808 - "GET /api/v1/admin/check HTTP/1.1" 403 Forbidden
+2026-04-05 19:59:04,556 INFO     salyq.requests | [32m200[0m GET /api/v1/auth/me [18ms] user=524632c9-7ecb-4243-a28d-02f76d45ee9c
+INFO:     127.0.0.1:50858 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+2026-04-05 19:59:04,566 INFO     salyq.requests | [32m200[0m GET /api/v1/chat/sessions [27ms] user=524632c9-7ecb-4243-a28d-02f76d45ee9c
+INFO:     127.0.0.1:55936 - "GET /api/v1/chat/sessions HTTP/1.1" 200 OK
+2026-04-05 19:59:04,577 INFO     salyq.requests | [32m200[0m GET /api/v1/auth/me [18ms] user=524632c9-7ecb-4243-a28d-02f76d45ee9c
+INFO:     127.0.0.1:50858 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
+2026-04-05 19:59:04,586 INFO     salyq.requests | [33m403[0m GET /api/v1/admin/check [5ms] user=524632c9-7ecb-4243-a28d-02f76d45ee9c
+INFO:     127.0.0.1:50858 - "GET /api/v1/admin/check HTTP/1.1" 403 Forbidden
+2026-04-05 19:59:04,588 INFO     salyq.requests | [32m200[0m GET /api/v1/chat/sessions [19ms] user=524632c9-7ecb-4243-a28d-02f76d45ee9c
+INFO:     127.0.0.1:55936 - "GET /api/v1/chat/sessions HTTP/1.1" 200 OK
+2026-04-05 19:59:04,597 INFO     salyq.requests | [33m403[0m GET /api/v1/admin/check [5ms] user=524632c9-7ecb-4243-a28d-02f76d45ee9c
+INFO:     127.0.0.1:55936 - "GET /api/v1/admin/check HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:56118 - "OPTIONS /api/v1/calculator/salary-monthly HTTP/1.1" 200 OK
+2026-04-05 20:00:11,832 INFO     salyq.requests | [32m200[0m POST /api/v1/calculator/salary-monthly [5ms] user=524632c9-7ecb-4243-a28d-02f76d45ee9c
+INFO:     127.0.0.1:56118 - "POST /api/v1/calculator/salary-monthly HTTP/1.1" 200 OK
+2026-04-05 20:02:19,020 INFO     salyq.requests | [32m200[0m POST /api/v1/calculator/salary-monthly [5ms] user=524632c9-7ecb-4243-a28d-02f76d45ee9c
+INFO:     127.0.0.1:53872 - "POST /api/v1/calculator/salary-monthly HTTP/1.1" 200 OK
+2026-04-05 20:02:53,932 INFO     salyq.requests | [32m200[0m POST /api/v1/calculator/salary-monthly [4ms] user=524632c9-7ecb-4243-a28d-02f76d45ee9c
+INFO:     127.0.0.1:55255 - "POST /api/v1/calculator/salary-monthly HTTP/1.1" 200 OK
+2026-04-05 20:02:55,398 INFO     salyq.requests | [32m200[0m POST /api/v1/calculator/salary-monthly [3ms] user=524632c9-7ecb-4243-a28d-02f76d45ee9c
+INFO:     127.0.0.1:55255 - "POST /api/v1/calculator/salary-monthly HTTP/1.1" 200 OK
+2026-04-05 20:03:08,437 INFO     salyq.requests | [32m200[0m POST /api/v1/calculator/salary-monthly [4ms] user=524632c9-7ecb-4243-a28d-02f76d45ee9c
+INFO:     127.0.0.1:54738 - "POST /api/v1/calculator/salary-monthly HTTP/1.1" 200 OK
