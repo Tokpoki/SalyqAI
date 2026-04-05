@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Scale, ArrowLeft, ArrowRight, User, Mail, Lock, Building2, Briefcase } from "lucide-react";
+import { Scale, ArrowLeft, ArrowRight, User, Mail, Lock, Building2, Briefcase, Users, Plus, Trash2 } from "lucide-react";
 import MoneyInput from "@/components/MoneyInput";
 import { register } from "@/api/auth";
 import { cn } from "@/lib/utils";
@@ -26,8 +26,7 @@ export default function RegisterPage() {
   const [taxRegime, setTaxRegime] = useState("");
   const [annualIncome, setAnnualIncome] = useState("");
   const [activityType, setActivityType] = useState("");
-  const [hasRental, setHasRental] = useState(false);
-  const [hasForeign, setHasForeign] = useState(false);
+  const [salaryGroups, setSalaryGroups] = useState<{ salary: string; count: string }[]>([]);
 
   async function handleStep1(e: React.FormEvent) {
     e.preventDefault();
@@ -40,13 +39,16 @@ export default function RegisterPage() {
     try {
       const payload: Parameters<typeof register>[0] = { email, password, name };
       if (withProfile) {
+        const groups = salaryGroups
+          .filter((g) => g.salary && g.count && Number(g.salary) > 0 && Number(g.count) > 0)
+          .map((g) => ({ salary: Number(g.salary), count: Number(g.count) }));
+
         payload.profile = {
           ...(taxpayerType && { taxpayer_type: taxpayerType }),
           ...(taxRegime && { tax_regime: taxRegime }),
           ...(annualIncome && { annual_income_kzt: Number(annualIncome) }),
           ...(activityType && { activity_type: activityType }),
-          has_rental_income: hasRental,
-          has_foreign_income: hasForeign,
+          ...(groups.length > 0 && { employee_salary_groups: groups }),
         };
       }
       await register(payload);
@@ -217,26 +219,65 @@ export default function RegisterPage() {
                     placeholder={t("settings.activityPlaceholder")}
                   />
                 </div>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2.5 rounded-xl border border-border/50 px-4 py-3 text-sm cursor-pointer transition-colors hover:bg-accent/50">
-                    <input
-                      type="checkbox"
-                      checked={hasRental}
-                      onChange={(e) => setHasRental(e.target.checked)}
-                      className="rounded border-border accent-primary"
-                    />
-                    {t("register.rental")}
-                  </label>
-                  <label className="flex items-center gap-2.5 rounded-xl border border-border/50 px-4 py-3 text-sm cursor-pointer transition-colors hover:bg-accent/50">
-                    <input
-                      type="checkbox"
-                      checked={hasForeign}
-                      onChange={(e) => setHasForeign(e.target.checked)}
-                      className="rounded border-border accent-primary"
-                    />
-                    {t("register.foreign")}
-                  </label>
-                </div>
+                {/* Employees */}
+                {taxRegime !== "self_employed" && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm font-medium flex items-center gap-2">
+                        <Users size={14} className="text-muted-foreground" />
+                        {t("settings.employees")}
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setSalaryGroups([...salaryGroups, { salary: "", count: "1" }])}
+                        className="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+                      >
+                        <Plus size={12} />
+                        {t("settings.addEmployees")}
+                      </button>
+                    </div>
+                    {salaryGroups.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-[1fr_80px_32px] gap-2 text-xs text-muted-foreground px-1">
+                          <span>{t("settings.employeeSalary")}</span>
+                          <span>{t("settings.employeeCount")}</span>
+                          <span></span>
+                        </div>
+                        {salaryGroups.map((g, i) => (
+                          <div key={i} className="grid grid-cols-[1fr_80px_32px] gap-2">
+                            <MoneyInput
+                              value={g.salary}
+                              onChange={(v) => {
+                                const next = [...salaryGroups];
+                                next[i] = { ...next[i], salary: v };
+                                setSalaryGroups(next);
+                              }}
+                              className={inputClassNoIcon}
+                            />
+                            <input
+                              type="number"
+                              min="1"
+                              value={g.count}
+                              onChange={(e) => {
+                                const next = [...salaryGroups];
+                                next[i] = { ...next[i], count: e.target.value };
+                                setSalaryGroups(next);
+                              }}
+                              className={inputClassNoIcon + " text-center"}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setSalaryGroups(salaryGroups.filter((_, j) => j !== i))}
+                              className="rounded-lg p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {error && (
                   <motion.p

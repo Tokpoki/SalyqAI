@@ -6,9 +6,35 @@ Compares Simplified / General / Self-employed regimes and recommends the cheapes
 
 from __future__ import annotations
 
+import json
 from datetime import date, datetime
 from src.calculator.constants import TaxConstants, get_constants
-from src.calculator.ip_calc import calc_ip_self, calc_semiannual_simplified
+from src.calculator.ip_calc import calc_ip_self, calc_semiannual_simplified, calc_employee
+
+
+# OKED prefixes that are NOT eligible for self-employed (ЕСП).
+# ЕСП is for simple personal services only — not for businesses requiring
+# premises, equipment, licenses, or organizational structure.
+_SELF_EMPLOYED_BANNED_PREFIXES = (
+    "01", "02", "03",           # Agriculture, forestry, fishing
+    "05", "06", "07", "08", "09",  # Mining
+    "10", "11", "12", "13", "14", "15", "16", "17", "18", "19",  # Manufacturing
+    "20", "21", "22", "23", "24", "25", "26", "27", "28", "29",
+    "30", "31", "32", "33",
+    "35",                       # Energy/utilities
+    "36", "37", "38", "39",     # Water/waste
+    "41", "42", "43",           # Construction
+    "45", "46", "47",           # Trade (wholesale/retail)
+    "49", "50", "51",           # Transport
+    "55",                       # Accommodation (hotels etc.)
+    "56",                       # Food services (restaurants)
+    "64", "65", "66",           # Finance/insurance
+    "68",                       # Real estate
+    "84",                       # Public administration
+    "85",                       # Education (institutional)
+    "86", "87", "88",           # Healthcare
+    "92",                       # Gambling
+)
 
 
 def _calc_annual_contributions(monthly_income: float, c: TaxConstants) -> dict:
@@ -112,10 +138,33 @@ def _calc_general(annual_income: float, monthly_income: float, c: TaxConstants) 
     }
 
 
-def _calc_self_employed(annual_income: float, c: TaxConstants, has_employees: bool) -> dict:
+def _is_oked_eligible_self_employed(oked_code: str | None) -> bool:
+    """Check if OKED is eligible for self-employed (ЕСП) regime."""
+    if not oked_code:
+        return True  # No OKED set — assume eligible
+    prefix2 = oked_code[:2]
+    return prefix2 not in _SELF_EMPLOYED_BANNED_PREFIXES
+
+
+def _calc_self_employed(
+    annual_income: float,
+    c: TaxConstants,
+    has_employees: bool,
+    oked_code: str | None = None,
+    taxpayer_type: str | None = None,
+) -> dict:
     """СНР для самозанятых — ЕСП = 1 МРП/мес."""
-    eligible = not has_employees
+    oked_ok = _is_oked_eligible_self_employed(oked_code)
+    eligible = not has_employees and oked_ok and taxpayer_type != "legal_entity"
     annual_esp = c.mrp * 12
+
+    ineligibility_reasons = []
+    if has_employees:
+        ineligibility_reasons.append("наличие работников")
+    if not oked_ok:
+        ineligibility_reasons.append(f"ОКЭД {oked_code} не подходит для ЕСП")
+    if taxpayer_type == "legal_entity":
+        ineligibility_reasons.append("юрлицо не может применять ЕСП")
 
     return {
         "regime": "self_employed",
@@ -130,9 +179,42 @@ def _calc_self_employed(annual_income: float, c: TaxConstants, has_employees: bo
         "eligible": eligible,
         "details": {
             "esp_monthly": c.mrp,
-            "note": "ЕСП включает ОПВ, СО, ВОСМС, ИПН и соцналог" if eligible else "Недоступен при наличии работников",
+            "note": "ЕСП включает ОПВ, СО, ВОСМС, ИПН и соцналог" if eligible
+                else f"Недоступен: {', '.join(ineligibility_reasons)}",
         },
         "article": "ст. 774 НК РК",
+    }
+
+
+def _calc_employee_costs(salary_groups: list[dict], c: TaxConstants) -> dict:
+    """Calculate total annual employer cost for all employee salary groups."""
+    total_monthly_employer = 0
+    total_monthly_deductions = 0
+    total_employees = 0
+    group_details = []
+
+    for group in salary_groups:
+        salary = group.get("salary", 0)
+        count = group.get("count", 0)
+        if salary <= 0 or count <= 0:
+            continue
+
+        emp = calc_employee(salary, c)
+        total_monthly_employer += emp["total_employer_cost"] * count
+        total_monthly_deductions += emp["total_deductions"] * count
+        total_employees += count
+        group_details.append({
+            "salary": salary,
+            "count": count,
+            "employer_cost_per_employee": emp["total_employer_cost"],
+            "total_employer_cost": emp["total_employer_cost"] * count,
+        })
+
+    return {
+        "total_employees": total_employees,
+        "monthly_employer_cost": total_monthly_employer,
+        "annual_employer_cost": total_monthly_employer * 12,
+        "groups": group_details,
     }
 
 
@@ -258,6 +340,23 @@ def optimize(profile: dict, year: int = 2026) -> dict:
     current_regime = profile.get("tax_regime") or "simplified"
     has_employees = (profile.get("employees_count") or 0) > 0
     oked_banned = profile.get("oked_banned", False)
+    oked_code = profile.get("oked_code")
+    taxpayer_type = profile.get("taxpayer_type")
+
+    # Parse employee salary groups
+    raw_groups = profile.get("employee_salary_groups")
+    salary_groups: list[dict] = []
+    if isinstance(raw_groups, str):
+        try:
+            salary_groups = json.loads(raw_groups)
+        except (json.JSONDecodeError, TypeError):
+            pass
+    elif isinstance(raw_groups, list):
+        salary_groups = raw_groups
+
+    total_employees = sum(g.get("count", 0) for g in salary_groups)
+    if total_employees > 0:
+        has_employees = True
 
     if not annual_income:
         return {
@@ -274,16 +373,30 @@ def optimize(profile: dict, year: int = 2026) -> dict:
 
     monthly_income = annual_income / 12
 
-    # Calculate all regimes
+    # Calculate employee costs (same for simplified & general regimes)
+    employee_costs = _calc_employee_costs(salary_groups, c) if salary_groups else None
+    annual_employee_cost = employee_costs["annual_employer_cost"] if employee_costs else 0
+
+    # Calculate all regimes (IP's own taxes + contributions)
     simplified = _calc_simplified(annual_income, monthly_income, c)
     general = _calc_general(annual_income, monthly_income, c)
-    self_employed = _calc_self_employed(annual_income, c, has_employees)
+    self_employed = _calc_self_employed(annual_income, c, has_employees, oked_code, taxpayer_type)
+
+    # Add employee costs to simplified and general
+    if annual_employee_cost > 0:
+        for regime in [simplified, general]:
+            regime["annual_employee_cost"] = annual_employee_cost
+            regime["annual_total"] += annual_employee_cost
+            regime["monthly_total"] = round(regime["annual_total"] / 12)
+            regime["details"]["employee_costs"] = employee_costs
 
     # Apply eligibility restrictions
     if oked_banned:
         simplified["eligible"] = False
-    if has_employees:
-        self_employed["eligible"] = False
+
+    # Simplified has employee limit of 30
+    if total_employees > 30:
+        simplified["eligible"] = False
 
     regimes = [simplified, general, self_employed]
 
@@ -312,11 +425,19 @@ def optimize(profile: dict, year: int = 2026) -> dict:
         risks.append({
             "type": "oked_banned",
             "severity": "high",
-            "message_ru": f"Ваш ОКЭД ({profile.get('oked_code', '?')}) запрещён для упрощённой декларации. Необходимо перейти на ОУР.",
+            "message_ru": f"Ваш ОКЭД ({oked_code or '?'}) запрещён для упрощённой декларации. Необходимо перейти на ОУР.",
             "message_kz": "Сіздің ОКЭД жеңілдетілген декларация үшін тыйым салынған.",
-            "message_en": f"Your OKED ({profile.get('oked_code', '?')}) is banned for simplified regime.",
+            "message_en": f"Your OKED ({oked_code or '?'}) is banned for simplified regime.",
         })
-    if annual_income / 12 > 20_000 * c.mrp / 12:
+    if total_employees > 25 and current_regime == "simplified":
+        risks.append({
+            "type": "employee_limit",
+            "severity": "high" if total_employees > 30 else "medium",
+            "message_ru": f"У вас {total_employees} работников. Лимит для упрощёнки — 30 человек.",
+            "message_kz": f"Сізде {total_employees} жұмысшы бар. Жеңілдетілген шек — 30 адам.",
+            "message_en": f"You have {total_employees} employees. Simplified regime limit is 30.",
+        })
+    if annual_income > 20_000 * c.mrp:
         risks.append({
             "type": "vat_registration",
             "severity": "medium",
@@ -347,5 +468,6 @@ def optimize(profile: dict, year: int = 2026) -> dict:
         "risks": risks,
         "deadlines": _get_deadlines(current_regime, date.today()),
         "recommendations": recommendations,
+        "employee_summary": employee_costs,
         "constants": {"mrp": c.mrp, "mzp": c.mzp, "year": year},
     }

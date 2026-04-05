@@ -33,6 +33,7 @@ PROFILE_FIELDS = (
     "oked_name",
     "oked_banned",
     "language",
+    "employee_salary_groups",
 )
 
 _DDL = """
@@ -76,6 +77,7 @@ CREATE TABLE IF NOT EXISTS taxpayer_profiles (
     oked_name TEXT,
     oked_banned INTEGER DEFAULT 0,
     language TEXT DEFAULT 'ru',
+    employee_salary_groups TEXT,
     updated_at TEXT NOT NULL
 );
 
@@ -315,6 +317,7 @@ def _normalize_legacy_schema(conn: sqlite3.Connection) -> None:
         "updated_at TEXT NOT NULL DEFAULT (datetime('now'))",
     )
     _ensure_column(conn, "taxpayer_profiles", "language", "language TEXT DEFAULT 'ru'")
+    _ensure_column(conn, "taxpayer_profiles", "employee_salary_groups", "employee_salary_groups TEXT")
     conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_user ON taxpayer_profiles(user_id)")
 
 
@@ -757,6 +760,7 @@ def update_profile_by_user(
                 oked_name = ?,
                 oked_banned = ?,
                 language = ?,
+                employee_salary_groups = ?,
                 updated_at = ?
             WHERE user_id = ?
             """,
@@ -773,6 +777,7 @@ def update_profile_by_user(
                 payload.get("oked_name"),
                 payload.get("oked_banned", 0),
                 payload.get("language", "ru"),
+                payload.get("employee_salary_groups"),
                 timestamp,
                 user_id,
             ),
@@ -839,9 +844,10 @@ def upsert_taxpayer_profile(
                 has_foreign_income,
                 has_rental_income,
                 residency_status,
+                employee_salary_groups,
                 updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(session_id) DO UPDATE SET
                 user_id = excluded.user_id,
                 taxpayer_type = excluded.taxpayer_type,
@@ -852,6 +858,7 @@ def upsert_taxpayer_profile(
                 has_foreign_income = excluded.has_foreign_income,
                 has_rental_income = excluded.has_rental_income,
                 residency_status = excluded.residency_status,
+                employee_salary_groups = excluded.employee_salary_groups,
                 updated_at = excluded.updated_at
             """,
             (
@@ -866,6 +873,7 @@ def upsert_taxpayer_profile(
                 payload["has_foreign_income"],
                 payload["has_rental_income"],
                 payload["residency_status"],
+                payload.get("employee_salary_groups"),
                 timestamp,
             ),
         )

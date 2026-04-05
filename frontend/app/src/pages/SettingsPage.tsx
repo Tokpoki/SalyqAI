@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, LogOut, Loader2, Scale, Building2, Briefcase, Save, CheckCircle2, ShieldCheck, ShieldAlert, Globe } from "lucide-react";
+import { ArrowLeft, LogOut, Loader2, Scale, Building2, Briefcase, Save, CheckCircle2, ShieldCheck, ShieldAlert, Globe, Users, Plus, Trash2 } from "lucide-react";
 import { useTranslation } from "@/i18n";
 import MoneyInput from "@/components/MoneyInput";
 import { getProfile as _getProfile, updateProfile as _updateProfile, type Profile } from "@/api/profile";
@@ -23,8 +23,7 @@ export default function SettingsPage() {
   const [taxRegime, setTaxRegime] = useState("");
   const [annualIncome, setAnnualIncome] = useState("");
   const [activityType, setActivityType] = useState("");
-  const [hasRental, setHasRental] = useState(false);
-  const [hasForeign, setHasForeign] = useState(false);
+  const [salaryGroups, setSalaryGroups] = useState<{ salary: string; count: string }[]>([]);
 
   useEffect(() => {
     async function load() {
@@ -35,8 +34,12 @@ export default function SettingsPage() {
         setTaxRegime(p.tax_regime || "");
         setAnnualIncome(p.annual_income_kzt?.toString() || "");
         setActivityType(p.activity_type || "");
-        setHasRental(p.has_rental_income || false);
-        setHasForeign(p.has_foreign_income || false);
+        if (p.employee_salary_groups?.length) {
+          setSalaryGroups(p.employee_salary_groups.map((g) => ({
+            salary: g.salary.toString(),
+            count: g.count.toString(),
+          })));
+        }
         if (p.language) localStorage.setItem("salyq_language", p.language);
       } catch {
         // silent
@@ -51,15 +54,18 @@ export default function SettingsPage() {
     setSaving(true);
     setSaved(false);
     try {
+      const groups = salaryGroups
+        .filter((g) => g.salary && g.count && Number(g.salary) > 0 && Number(g.count) > 0)
+        .map((g) => ({ salary: Number(g.salary), count: Number(g.count) }));
+
       const updated = await updateProfile({
         taxpayer_type: taxpayerType || null,
         tax_regime: taxRegime || null,
         annual_income_kzt: annualIncome ? Number(annualIncome) : null,
         activity_type: activityType || null,
-        has_rental_income: hasRental,
-        has_foreign_income: hasForeign,
         language: localStorage.getItem("salyq_language") || "ru",
-      });
+        employee_salary_groups: groups.length > 0 ? groups : null,
+      } as any);
       setProfile(updated);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -210,26 +216,65 @@ export default function SettingsPage() {
               )}
             </div>
 
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2.5 rounded-xl border border-border/50 px-4 py-3 text-sm cursor-pointer transition-colors hover:bg-accent/50">
-                <input
-                  type="checkbox"
-                  checked={hasRental}
-                  onChange={(e) => setHasRental(e.target.checked)}
-                  className="rounded border-border accent-primary"
-                />
-                {t("settings.rentalIncome")}
-              </label>
-              <label className="flex items-center gap-2.5 rounded-xl border border-border/50 px-4 py-3 text-sm cursor-pointer transition-colors hover:bg-accent/50">
-                <input
-                  type="checkbox"
-                  checked={hasForeign}
-                  onChange={(e) => setHasForeign(e.target.checked)}
-                  className="rounded border-border accent-primary"
-                />
-                {t("settings.foreignIncome")}
-              </label>
-            </div>
+            {/* Employee salary groups */}
+            {taxRegime !== "self_employed" && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <Users size={16} className="text-muted-foreground" />
+                    {t("settings.employees")}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setSalaryGroups([...salaryGroups, { salary: "", count: "1" }])}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+                  >
+                    <Plus size={14} />
+                    {t("settings.addEmployees")}
+                  </button>
+                </div>
+                {salaryGroups.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-[1fr_100px_36px] gap-2 text-xs text-muted-foreground px-1">
+                      <span>{t("settings.employeeSalary")}</span>
+                      <span>{t("settings.employeeCount")}</span>
+                      <span></span>
+                    </div>
+                    {salaryGroups.map((g, i) => (
+                      <div key={i} className="grid grid-cols-[1fr_100px_36px] gap-2">
+                        <MoneyInput
+                          value={g.salary}
+                          onChange={(v) => {
+                            const next = [...salaryGroups];
+                            next[i] = { ...next[i], salary: v };
+                            setSalaryGroups(next);
+                          }}
+                          className={inputClassNoIcon}
+                        />
+                        <input
+                          type="number"
+                          min="1"
+                          value={g.count}
+                          onChange={(e) => {
+                            const next = [...salaryGroups];
+                            next[i] = { ...next[i], count: e.target.value };
+                            setSalaryGroups(next);
+                          }}
+                          className={inputClassNoIcon + " text-center"}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setSalaryGroups(salaryGroups.filter((_, j) => j !== i))}
+                          className="rounded-xl p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="flex items-center gap-3 pt-2">
               <button

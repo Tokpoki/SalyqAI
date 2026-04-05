@@ -30,6 +30,7 @@ export interface Profile {
   oked_name: string | null;
   oked_banned: boolean | null;
   language: string | null;
+  employee_salary_groups: { salary: number; count: number }[] | null;
   updated_at: string;
 }
 
